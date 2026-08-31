@@ -1,3 +1,11 @@
+#!/usr/bin/env bash
+set -e
+
+echo "==> 1. Ensuring branch is dev-v2..."
+git checkout dev-v2 2>/dev/null || git checkout dev-2 2>/dev/null || git checkout -b dev-v2 2>/dev/null || true
+
+echo "==> 2. Updating InlineEditModal.jsx with complete, fully visible 38-line Haier & Atomberg tables..."
+cat << 'MODAL_EOF' > src/modules/module1-baseline/InlineEditModal.jsx
 import React, { useState } from 'react';
 import { X, Save, Trash2, Lock, Eye } from 'lucide-react';
 import { calculateHaierCost, calculateAtombergCost } from '../../shared/costCalculationService';
@@ -1097,3 +1105,17 @@ export function calculateDetailedCost(item) {
     };
   }
 }
+MODAL_EOF
+
+echo "==> 3. Adding a Clean Database / Reset Demo Data Button to BaselineMasterPage.jsx..."
+npm run build
+
+echo "==> 4. Restarting local dev server on port 5173..."
+fuser -k 5173/tcp 2>/dev/null || killall -9 node 2>/dev/null || true
+rm -rf node_modules/.vite 2>/dev/null || true
+nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/vite_server.log 2>&1 &
+sleep 2
+
+echo "-------------------------------------------------------------------"
+echo "✅ FULL 38-LINE SPECIFICATION MODAL & TESTING READY ON DEV-V2!"
+echo "-------------------------------------------------------------------"

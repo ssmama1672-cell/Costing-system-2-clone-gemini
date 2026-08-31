@@ -10,11 +10,15 @@ import {
   Database,
   Calendar,
   Filter,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ExternalLink,
+  X,
+  ShoppingBag
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { globalStore, subscribeStore, getActiveRmMapping, normalizeVendorId } from '../../shared/masterStore';
 import { calculateDetailedCost } from '../module1-baseline/InlineEditModal';
+import InlineEditModal from '../module1-baseline/InlineEditModal';
 
 export default function MISVariancePage() {
   const [storeState, setStoreState] = useState(globalStore);
@@ -23,6 +27,10 @@ export default function MISVariancePage() {
   const [periodFrom, setPeriodFrom] = useState('2026-08-01');
   const [periodTo, setPeriodTo] = useState('2026-08-31');
   const [activeTab, setActiveTab] = useState('summary');
+
+  // Drilldown States
+  const [viewingSalesProductCode, setViewingSalesProductCode] = useState(null);
+  const [viewingProductSpec, setViewingProductSpec] = useState(null);
 
   useEffect(() => {
     const unsub = subscribeStore(() => setStoreState({ ...globalStore }));
@@ -74,6 +82,7 @@ export default function MISVariancePage() {
         itemCode: code,
         componentName: s.componentName || baseProd.componentName || code,
         vendor: s.vendor || baseProd.vendor || 'Haier Appliances',
+        baseProdObj: baseProd,
         invoicesCount: 0,
         totalQty: 0,
         totalRevenue: 0,
@@ -144,6 +153,7 @@ export default function MISVariancePage() {
       drilldownSummaryMap[code] = {
         itemCode: code,
         componentName: s.componentName || bp.componentName || code,
+        baseProdObj: bp,
         gainLoss: 0
       };
     }
@@ -177,6 +187,19 @@ export default function MISVariancePage() {
       }
     }
   });
+
+  // Sales entries for product drilldown
+  const matchingProductSales = viewingSalesProductCode 
+    ? filteredSales.filter(s => (s.itemCode || s.partCode) === viewingSalesProductCode)
+    : [];
+
+  const handleExportProductSales = () => {
+    if (!matchingProductSales.length) return;
+    const ws = XLSX.utils.json_to_sheet(matchingProductSales);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales_Invoices");
+    XLSX.writeFile(wb, `Sales_Entries_${viewingSalesProductCode}.xlsx`);
+  };
 
   const handleExportRealizationSection = () => {
     const dataToExport = activeTab === 'summary' ? productSummaryList : filteredSales;
@@ -302,7 +325,7 @@ export default function MISVariancePage() {
                 <th className="py-2.5 px-3">Component Name</th>
                 <th className="py-2.5 px-3">Vendor</th>
                 <th className="py-2.5 px-2 text-center">Invoices</th>
-                <th className="py-2.5 px-3 text-right">Total Qty Sold</th>
+                <th className="py-2.5 px-3 text-right">Total Qty Sold (Drilldown)</th>
                 <th className="py-2.5 px-3 text-right">Avg Selling Price</th>
                 <th className="py-2.5 px-3 text-right bg-amber-100 text-amber-950 font-bold">Contract Baseline</th>
                 <th className="py-2.5 px-3 text-right font-bold text-slate-900">Actual Unit Cost</th>
@@ -321,11 +344,40 @@ export default function MISVariancePage() {
               ) : (
                 productSummaryList.map((p, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition font-medium">
-                    <td className="py-2.5 px-3 font-mono font-black text-blue-700">{p.itemCode}</td>
+                    {/* Part Code with Read-Only Spec Drilldown */}
+                    <td className="py-2.5 px-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const baseObj = baselineProducts.find(b => b.itemCode === p.itemCode) || p.baseProdObj;
+                          if (baseObj) setViewingProductSpec(baseObj);
+                        }}
+                        className="font-mono font-black text-blue-700 hover:text-blue-900 underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>{p.itemCode}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </button>
+                    </td>
                     <td className="py-2.5 px-3 font-bold text-slate-900">{p.componentName}</td>
                     <td className="py-2.5 px-3 text-slate-700 font-bold">{p.vendor}</td>
                     <td className="py-2.5 px-2 text-center font-mono font-black text-slate-900">{p.invoicesCount}</td>
-                    <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900">{p.totalQty.toLocaleString()}</td>
+                    
+                    {/* 3- Click on Sales Qty in MIS page opens Sales Entry Drilldown */}
+                    <td className="py-2.5 px-3 text-right">
+                      {p.totalQty > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setViewingSalesProductCode(p.itemCode)}
+                          className="font-mono font-black text-blue-700 hover:text-blue-900 underline inline-flex items-center gap-1 cursor-pointer bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded border border-blue-200"
+                        >
+                          <span>{p.totalQty.toLocaleString()}</span>
+                          <ExternalLink className="w-2.5 h-2.5 text-blue-600" />
+                        </button>
+                      ) : (
+                        <span className="font-mono font-bold text-slate-500">0</span>
+                      )}
+                    </td>
+
                     <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900">₹{(p.totalRevenue / (p.totalQty || 1)).toFixed(2)}</td>
                     <td className="py-2.5 px-3 text-right font-mono font-black text-amber-950 bg-amber-50">₹{p.approvedUnitCost.toFixed(2)}</td>
                     <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900">₹{p.actualUnitCost.toFixed(2)}</td>
@@ -395,8 +447,8 @@ export default function MISVariancePage() {
                 <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-400">
                   {allVendorsGainLoss >= 0 ? `+ ₹${allVendorsGainLoss.toLocaleString()}` : `- ₹${Math.abs(allVendorsGainLoss).toLocaleString()}`}
                 </td>
-                <td className="py-2.5 px-3 text-right font-mono font-black text-slate-300">₹0</td>
-                <td className="py-2.5 px-3 text-right font-mono font-black text-slate-300">+ ₹0</td>
+                <td className="py-2.5 px-3 text-right font-mono text-slate-300">₹0</td>
+                <td className="py-2.5 px-3 text-right font-mono text-slate-300">+ ₹0</td>
                 <td className="py-2.5 px-3 text-center font-mono text-emerald-400 font-black">+0%</td>
                 <td className="py-2.5 px-3 text-right font-mono text-emerald-400 font-black">
                   {allVendorsGainLoss >= 0 ? `+ ₹${allVendorsGainLoss.toLocaleString()}` : `- ₹${Math.abs(allVendorsGainLoss).toLocaleString()}`}
@@ -467,7 +519,20 @@ export default function MISVariancePage() {
               ) : (
                 topProfitParts.map((p, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
-                    <td className="py-2 px-6 font-mono text-blue-700 font-bold">{p.itemCode} <span className="text-slate-800 font-sans font-semibold ml-2">{p.componentName}</span></td>
+                    <td className="py-2 px-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const baseObj = baselineProducts.find(b => b.itemCode === p.itemCode) || p.baseProdObj;
+                          if (baseObj) setViewingProductSpec(baseObj);
+                        }}
+                        className="font-mono text-blue-700 hover:text-blue-900 underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>{p.itemCode}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                        <span className="text-slate-800 font-sans font-semibold ml-2">{p.componentName}</span>
+                      </button>
+                    </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">+ ₹0</td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">+ ₹0</td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">+ ₹0</td>
@@ -486,7 +551,20 @@ export default function MISVariancePage() {
               ) : (
                 topLossParts.map((p, idx) => (
                   <tr key={idx} className="hover:bg-slate-50">
-                    <td className="py-2 px-6 font-mono text-rose-700 font-bold">{p.itemCode} <span className="text-slate-800 font-sans font-semibold ml-2">{p.componentName}</span></td>
+                    <td className="py-2 px-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const baseObj = baselineProducts.find(b => b.itemCode === p.itemCode) || p.baseProdObj;
+                          if (baseObj) setViewingProductSpec(baseObj);
+                        }}
+                        className="font-mono text-rose-700 hover:text-rose-900 underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>{p.itemCode}</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                        <span className="text-slate-800 font-sans font-semibold ml-2">{p.componentName}</span>
+                      </button>
+                    </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">- ₹0</td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">- ₹0</td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">- ₹0</td>
@@ -591,6 +669,88 @@ export default function MISVariancePage() {
           </table>
         </div>
       </div>
+
+      {/* 3. SALES ENTRIES DRILLDOWN MODAL (VIEW & DOWNLOAD EXCEL) */}
+      {viewingSalesProductCode && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-5 shadow-2xl space-y-4 text-xs">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Sales Invoices & Dispatches Drilldown</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">Part Code: <b>{viewingSalesProductCode}</b></p>
+                </div>
+              </div>
+              <button onClick={() => setViewingSalesProductCode(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
+                  <tr>
+                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3">Vendor</th>
+                    <th className="py-2.5 px-3">Invoice Number</th>
+                    <th className="py-2.5 px-3 text-right">Dispatch Qty</th>
+                    <th className="py-2.5 px-3 text-right">Selling Price</th>
+                    <th className="py-2.5 px-3 text-right">Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {matchingProductSales.length === 0 ? (
+                    <tr><td colSpan={6} className="py-6 text-center text-slate-400 italic">No sales invoices recorded for this part in the selected period.</td></tr>
+                  ) : (
+                    matchingProductSales.map((s, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 font-medium">
+                        <td className="py-2 px-3 font-mono font-bold text-slate-800">{s.date}</td>
+                        <td className="py-2 px-3 font-bold text-slate-900">{s.vendor}</td>
+                        <td className="py-2 px-3 font-mono font-black text-blue-700">{s.invoiceNo}</td>
+                        <td className="py-2 px-3 text-right font-mono font-black text-blue-900">{Number(s.qty || 0).toLocaleString()}</td>
+                        <td className="py-2 px-3 text-right font-mono font-black text-slate-900">₹{Number(s.rate || s.sellingPrice || 0).toFixed(2)}</td>
+                        <td className="py-2 px-3 text-right font-mono font-black text-emerald-800">₹{Number(s.amount || (Number(s.qty || 0) * Number(s.rate || s.sellingPrice || 0))).toFixed(2)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <span className="text-[11px] text-slate-700 font-bold">Total Invoices: {matchingProductSales.length}</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportProductSales}
+                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer text-xs shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Sales Entries (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingSalesProductCode(null)}
+                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* READ-ONLY SPECIFICATION MODAL (DRILLDOWN FROM PART CODE IN MIS) */}
+      {viewingProductSpec && (
+        <InlineEditModal
+          product={viewingProductSpec}
+          readOnly={true}
+          onClose={() => setViewingProductSpec(null)}
+          onSave={() => setViewingProductSpec(null)}
+          onDelete={() => setViewingProductSpec(null)}
+        />
+      )}
     </div>
   );
 }

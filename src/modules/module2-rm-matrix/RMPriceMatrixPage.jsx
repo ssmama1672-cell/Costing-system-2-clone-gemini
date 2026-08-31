@@ -17,7 +17,9 @@ import {
   Package,
   Search,
   Check,
-  ChevronDown
+  ChevronDown,
+  ExternalLink,
+  FileSpreadsheet
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { 
@@ -37,9 +39,18 @@ import {
   normalizeVendorId,
   isInvalidMaterialCode
 } from '../../shared/masterStore';
+import InlineEditModal from '../module1-baseline/InlineEditModal';
 
-// Searchable Multi-Select Component with QTY displayed in options & header
-function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled = false, approvedCode = '', totalInwardQty = 0 }) {
+// Searchable Multi-Select Component with QTY drilldown button
+function SearchableMultiSelect({ 
+  options = [], 
+  selected = [], 
+  onToggle, 
+  disabled = false, 
+  approvedCode = '', 
+  totalInwardQty = 0,
+  onOpenQtyDrilldown 
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
@@ -78,7 +89,6 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
             <span className="text-slate-500 italic font-medium">Select Alternate Lots...</span>
           ) : (
             <div className="flex flex-wrap gap-1.5 items-center max-w-[340px] truncate">
-              {/* Badge with Count + Total Active Inward Qty */}
               <span className="bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-md font-black text-[10px]">
                 {selectedCount} Lot{selectedCount > 1 ? 's' : ''} Selected {totalInwardQty > 0 ? `(${totalInwardQty.toLocaleString()} kg)` : ''}
               </span>
@@ -92,7 +102,7 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-80 md:w-[420px] bg-white border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-2">
+        <div className="absolute left-0 top-full mt-1 w-80 md:w-[440px] bg-white border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-2">
           {/* Search Box */}
           <div className="relative flex items-center bg-slate-100 rounded-xl px-2.5 py-1.5 border border-slate-200">
             <Search className="w-3.5 h-3.5 text-slate-500 shrink-0 mr-1.5" />
@@ -111,7 +121,7 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
             )}
           </div>
 
-          {/* Options List with Inward WA Rate & Qty */}
+          {/* Options List with Inward WA Rate & Clickable Qty Drilldown */}
           <div className="max-h-60 overflow-y-auto space-y-1 divide-y divide-slate-100">
             {/* Contract Baseline Option */}
             <div 
@@ -140,10 +150,12 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
                 return (
                   <div
                     key={i}
-                    onClick={() => onToggle(opt.code)}
-                    className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition pt-1.5"
+                    className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl transition pt-1.5"
                   >
-                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                    <div 
+                      onClick={() => onToggle(opt.code)}
+                      className="flex items-center gap-2 flex-1 min-w-0 pr-2 cursor-pointer"
+                    >
                       <div className={`w-4 h-4 rounded-md flex items-center justify-center border transition shrink-0 ${
                         isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
                       }`}>
@@ -151,16 +163,25 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
                       </div>
                       <div className="truncate">
                         <div className="font-bold text-slate-900 text-xs truncate">{opt.code}</div>
-                        {/* Marked Place: Display Inward WA Rate & Inward Quantity */}
-                        <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
-                          <span className="text-blue-700 font-bold">Inward WA: ₹{opt.price.toFixed(2)}/kg</span>
-                          <span className="text-slate-400">•</span>
-                          <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                            Qty: {opt.qty.toLocaleString()} kg
-                          </span>
+                        <div className="text-[10px] font-mono text-blue-700 font-bold">
+                          Inward WA: ₹{opt.price.toFixed(2)}/kg
                         </div>
                       </div>
                     </div>
+
+                    {/* Drilldown Qty Hyperlink Button */}
+                    <button
+                      type="button"
+                      title="Click to view & download purchase entries for this grade"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenQtyDrilldown(opt.code);
+                      }}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-1 rounded-lg cursor-pointer transition shadow-2xs shrink-0"
+                    >
+                      <span>Qty: {opt.qty.toLocaleString()} kg</span>
+                      <ExternalLink className="w-2.5 h-2.5 text-emerald-700" />
+                    </button>
                   </div>
                 );
               })
@@ -193,7 +214,11 @@ export default function RMPriceMatrixPage() {
   const [periodTo, setPeriodTo] = useState('2026-08-31');
   const [showAddModal, setShowAddModal] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  
+  // Drilldown States
   const [viewingUsageMat, setViewingUsageMat] = useState(null);
+  const [viewingProductSpec, setViewingProductSpec] = useState(null);
+  const [viewingPurchaseGrade, setViewingPurchaseGrade] = useState(null);
 
   const [isGlobalLocked, setIsGlobalLocked] = useState(true);
   const [isMatrixLocked, setIsMatrixLocked] = useState(true);
@@ -310,7 +335,7 @@ export default function RMPriceMatrixPage() {
       updatedArray = [approvedCode];
     }
 
-    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(updatedArray, approvedCode, approvedPrice, selectedVendor);
+    const { waRate } = computeCombinedWeightedAverageWithQty(updatedArray, approvedCode, approvedPrice, selectedVendor);
 
     updateRmMappingRow(rowId, { 
       selectedAlts: updatedArray,
@@ -467,7 +492,25 @@ export default function RMPriceMatrixPage() {
     setShowAddModal(false);
   };
 
+  // Products linked to selected material
   const activeUsageProducts = viewingUsageMat ? getProductsUsingMaterial(viewingUsageMat.approvedCode, selectedVendor) : [];
+
+  // Purchases linked to drilldown grade
+  const matchingPurchases = viewingPurchaseGrade 
+    ? purchases.filter(p => {
+        const pGrade = (p.grade || p.itemCode || '').toLowerCase().trim();
+        const target = viewingPurchaseGrade.toLowerCase().trim();
+        return pGrade === target || pGrade.includes(target) || target.includes(pGrade);
+      })
+    : [];
+
+  const handleExportDrilldownPurchases = () => {
+    if (!matchingPurchases.length) return;
+    const ws = XLSX.utils.json_to_sheet(matchingPurchases);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inward_Batches");
+    XLSX.writeFile(wb, `Inward_Purchases_${viewingPurchaseGrade.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+  };
 
   return (
     <div className="space-y-4 text-xs font-sans">
@@ -615,7 +658,7 @@ export default function RMPriceMatrixPage() {
                 <tr>
                   <th className="py-3 px-4 w-72">APPROVED RM/MB CODE & USAGE</th>
                   <th className="py-3 px-4 text-center w-36">APPROVED PRICE (₹/KG)</th>
-                  <th className="py-3 px-4">SEARCHABLE ALTERNATE RM LOTS (WITH INWARD QTY)</th>
+                  <th className="py-3 px-4">SEARCHABLE ALTERNATE RM LOTS (WITH INWARD QTY DRILLDOWN)</th>
                   <th className="py-3 px-4 text-center w-48 text-amber-300">COMBINED WA PRICE (₹/KG)</th>
                   <th className="py-3 px-3 text-center w-20">ACTION</th>
                 </tr>
@@ -681,7 +724,7 @@ export default function RMPriceMatrixPage() {
                           </div>
                         </td>
 
-                        {/* 3. Searchable Multi-Select Alternate Lots (Showing Total Qty) */}
+                        {/* 3. Searchable Multi-Select Alternate Lots (Showing Clickable Qty Drilldown) */}
                         <td className="py-3 px-4">
                           <div className="space-y-1">
                             <SearchableMultiSelect
@@ -691,9 +734,10 @@ export default function RMPriceMatrixPage() {
                               totalInwardQty={totalQty}
                               disabled={isRowDisabled}
                               onToggle={(toggledCode) => handleToggleAltOption(m.id, selectedAlts, toggledCode, m.approvedCode, m.approvedPrice)}
+                              onOpenQtyDrilldown={(gradeCode) => setViewingPurchaseGrade(gradeCode)}
                             />
                             <div className="text-[10px] text-slate-500 font-medium">
-                              Select single or multiple alternate lots to calculate combined weighted average rate.
+                              Click any inward lot checkbox to combine rates, or click on the <b>Qty badge</b> to view inward batches.
                             </div>
                           </div>
                         </td>
@@ -1068,7 +1112,7 @@ export default function RMPriceMatrixPage() {
         </div>
       )}
 
-      {/* PRODUCT USAGE INSPECTOR MODAL */}
+      {/* 1. PRODUCT USAGE INSPECTOR MODAL (WITH READ-ONLY SPEC DRILLDOWN) */}
       {viewingUsageMat && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
@@ -1094,7 +1138,7 @@ export default function RMPriceMatrixPage() {
                 <table className="w-full text-left border-collapse text-xs">
                   <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
                     <tr>
-                      <th className="py-2 px-3">Part Code</th>
+                      <th className="py-2 px-3">Part Code (Click to View Spec)</th>
                       <th className="py-2 px-3">Component Name</th>
                       <th className="py-2 px-3 text-right">Net Wt</th>
                     </tr>
@@ -1102,7 +1146,19 @@ export default function RMPriceMatrixPage() {
                   <tbody className="divide-y divide-slate-100">
                     {activeUsageProducts.map((p, i) => (
                       <tr key={i} className="hover:bg-slate-50">
-                        <td className="py-2 px-3 font-mono font-bold text-blue-700">{p.itemCode}</td>
+                        <td className="py-2 px-3">
+                          {/* 1- Click on Part Code opens read-only Edit Spec view */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setViewingProductSpec(p);
+                            }}
+                            className="font-mono font-black text-blue-700 hover:text-blue-900 underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>{p.itemCode}</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </button>
+                        </td>
                         <td className="py-2 px-3 font-medium text-slate-800">{p.componentName}</td>
                         <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{p.netWeight}g</td>
                       </tr>
@@ -1123,6 +1179,86 @@ export default function RMPriceMatrixPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 2. INWARD PURCHASES DRILLDOWN MODAL (VIEW & DOWNLOAD EXCEL) */}
+      {viewingPurchaseGrade && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-5 shadow-2xl space-y-4 text-xs">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Inward Purchase Entries</h3>
+                  <p className="text-[11px] text-slate-500 font-mono">Grade: <b>{viewingPurchaseGrade}</b> ({selectedVendor})</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingPurchaseGrade(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
+                  <tr>
+                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3">Supplier</th>
+                    <th className="py-2.5 px-3">Invoice #</th>
+                    <th className="py-2.5 px-3 text-right">Inward Qty (kg)</th>
+                    <th className="py-2.5 px-3 text-right">Purchase Rate (₹/kg)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {matchingPurchases.length === 0 ? (
+                    <tr><td colSpan={5} className="py-6 text-center text-slate-400 italic">No purchase batches recorded for this grade.</td></tr>
+                  ) : (
+                    matchingPurchases.map((p, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50 font-medium">
+                        <td className="py-2 px-3 font-mono font-bold text-slate-800">{p.date}</td>
+                        <td className="py-2 px-3 font-bold text-slate-900">{p.supplier || p.supplierName || '-'}</td>
+                        <td className="py-2 px-3 font-mono font-black text-blue-700">{p.invoiceNo}</td>
+                        <td className="py-2 px-3 text-right font-mono font-black text-emerald-800">{Number(p.qty || 0).toLocaleString()} kg</td>
+                        <td className="py-2 px-3 text-right font-mono font-black text-slate-900">₹{Number(p.rate || 0).toFixed(2)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <span className="text-[11px] text-slate-700 font-bold">Total Batches: {matchingPurchases.length}</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportDrilldownPurchases}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer text-xs shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Inward Batches (.xlsx)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingPurchaseGrade(null)}
+                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold cursor-pointer text-xs"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* READ-ONLY SPECIFICATION MODAL (DRILLDOWN FROM PART CODE) */}
+      {viewingProductSpec && (
+        <InlineEditModal
+          product={viewingProductSpec}
+          readOnly={true}
+          onClose={() => setViewingProductSpec(null)}
+          onSave={() => setViewingProductSpec(null)}
+          onDelete={() => setViewingProductSpec(null)}
+        />
       )}
     </div>
   );
