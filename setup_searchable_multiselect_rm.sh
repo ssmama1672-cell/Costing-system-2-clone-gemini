@@ -1,3 +1,512 @@
+#!/usr/bin/env bash
+set -e
+
+echo "==> 1. Checking out and ensuring branch is dev-v2 (or dev-2)..."
+git checkout dev-v2 2>/dev/null || git checkout -b dev-v2 2>/dev/null || git checkout dev-2 2>/dev/null || git checkout -b dev-2
+
+echo "==> 2. Updating src/shared/masterStore.js with multi-select combined weighted average calculation..."
+cat << 'STORE_EOF' > src/shared/masterStore.js
+// ============================================================================
+// GLOBAL MASTER DATA STORE (Multi-Select Alternate Lots & Combined Weighted Average)
+// ============================================================================
+
+const STORAGE_KEY = 'CPC_MASTER_STORE_DEV_V2_MULTI_ALT_WA_V1';
+
+export function normalizeVendorId(vendor) {
+  if (!vendor) return 'haier';
+  const v = vendor.toString().toLowerCase().trim();
+  if (v.includes('atomberg')) return 'atomberg';
+  if (v.includes('atharva')) return 'atharva';
+  if (v.includes('haier')) return 'haier';
+  return v;
+}
+
+export function isInvalidMaterialCode(code) {
+  if (!code) return true;
+  const s = String(code).toLowerCase().trim();
+  return (
+    s === '' ||
+    s === '-' ||
+    s === 'nan' ||
+    s === 'null' ||
+    s === 'undefined' ||
+    s === 'fixed as per upload' ||
+    s === 'description' ||
+    s === 'uom' ||
+    s === 'name of component' ||
+    s === 'raw material required' ||
+    s === 'mb code' ||
+    !isNaN(Number(s))
+  );
+}
+
+export function sanitizeMaterialName(matStr, compName = '', itemCode = '', vendor = 'haier') {
+  if (!matStr || String(matStr).trim() === '' || String(matStr).trim() === 'nan') {
+    matStr = '';
+  } else {
+    matStr = String(matStr).trim();
+  }
+
+  const isNumeric = !isNaN(Number(matStr)) && matStr !== '';
+  if (isNumeric || isInvalidMaterialCode(matStr)) {
+    const cUpper = (compName || '').toUpperCase();
+    const vNorm = normalizeVendorId(vendor);
+
+    if (cUpper.includes('HIPS')) {
+      return vNorm === 'haier' ? 'HIPS SH303 + White MB' : 'HIPS SH303';
+    } else if (cUpper.includes('PP')) {
+      return vNorm === 'haier' ? 'PP B-400MN + White MB' : 'PP H110MA + Gloss White';
+    } else if (cUpper.includes('ABS')) {
+      return vNorm === 'haier' ? 'ABS 300- M Red' : 'ABS';
+    } else if (cUpper.includes('PS')) {
+      return 'HIPS SH03 + White MB';
+    } else {
+      return vNorm === 'haier' ? 'HIPS SH303 + White MB' : 'PP H110MA + Gloss White';
+    }
+  }
+
+  return matStr;
+}
+
+export function parseMaterialString(rawMaterialStr) {
+  if (!rawMaterialStr) return { baseRm: '', mbGrade: '' };
+  const cleanStr = rawMaterialStr.toString().trim();
+  if (cleanStr.includes('+')) {
+    const parts = cleanStr.split('+').map(s => s.trim());
+    return { baseRm: parts[0] || '', mbGrade: parts[1] || '' };
+  }
+  return { baseRm: cleanStr, mbGrade: '' };
+}
+
+// Compute Combined Weighted Average for an array of selected alternate grade names
+export function computeCombinedWeightedAverage(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
+  const purchases = globalStore.purchases || [];
+  const vNorm = normalizeVendorId(vendor);
+  
+  if (!Array.isArray(selectedCodesArray) || selectedCodesArray.length === 0) {
+    return Number(approvedPrice || 0);
+  }
+
+  let totalQty = 0;
+  let totalCost = 0;
+  let includesContractBaseline = false;
+
+  selectedCodesArray.forEach(code => {
+    if (!code) return;
+    const cClean = code.toString().toLowerCase().trim();
+    const isBaseline = cClean === (approvedCode || '').toLowerCase().trim() || cClean.includes('contract baseline');
+
+    if (isBaseline) {
+      includesContractBaseline = true;
+    } else {
+      const matching = purchases.filter(p => {
+        const pGrade = (p.grade || p.itemCode || p.rawMaterial || p.supplier || '').toString().toLowerCase().trim();
+        const pNorm = normalizeVendorId(p.vendor);
+        const matchGrade = pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
+        const matchVendor = !vendor || vNorm === 'all' || pNorm === vNorm;
+        return matchGrade && matchVendor;
+      });
+
+      matching.forEach(m => {
+        const qty = Number(m.qty || m.quantity || 0);
+        const rate = Number(m.rate || m.netRate || m.price || 0);
+        if (qty > 0 && rate > 0) {
+          totalQty += qty;
+          totalCost += (qty * rate);
+        }
+      });
+    }
+  });
+
+  if (totalQty > 0) {
+    return Number((totalCost / totalQty).toFixed(2));
+  }
+
+  return Number(approvedPrice || 0);
+}
+
+export function computeGradeWeightedAverage(gradeOrCode, vendor) {
+  return computeCombinedWeightedAverage([gradeOrCode], '', 0, vendor);
+}
+
+function loadPersistedStore() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_PROD_RELEASE_V5');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.rmMappingsData) {
+        parsed.rmMappingsData = parsed.rmMappingsData.filter(r => !isInvalidMaterialCode(r.approvedCode)).map(r => {
+          // Normalize selected alternate codes to an array
+          let selectedAlts = r.selectedAlts;
+          if (!Array.isArray(selectedAlts)) {
+            selectedAlts = [r.alt1Code || r.approvedCode].filter(Boolean);
+          }
+          return {
+            ...r,
+            selectedAlts
+          };
+        });
+      }
+      return parsed;
+    }
+  } catch (err) {
+    console.error("Error loading store:", err);
+  }
+  return null;
+}
+
+const defaultStore = {
+  isLocked: true,
+  isMatrixLocked: true,
+  vendors: [
+    { vendorId: 'Haier Appliances', vendorName: 'Haier Appliances' },
+    { vendorId: 'Atomberg Technologies', vendorName: 'Atomberg Technologies' },
+    { vendorId: 'Atharva Polymer', vendorName: 'Atharva Polymer (Haier)' }
+  ],
+  vendorSchedules: {
+    'Haier Appliances': { periodFrom: '2026-08-01', periodTo: '2026-08-31' },
+    'Atomberg Technologies': { periodFrom: '2026-08-01', periodTo: '2026-08-31' },
+    'Atharva Polymer': { periodFrom: '2026-08-01', periodTo: '2026-08-31' }
+  },
+  rmMappingsData: [],
+  baselineProducts: [],
+  purchases: [],
+  sales: [],
+  auditLogs: []
+};
+
+const initialStore = loadPersistedStore() || defaultStore;
+
+export let globalStore = {
+  ...defaultStore,
+  ...initialStore,
+  isLocked: initialStore.isLocked !== undefined ? initialStore.isLocked : true,
+  isMatrixLocked: initialStore.isMatrixLocked !== undefined ? initialStore.isMatrixLocked : true,
+  vendors: (initialStore.vendors && initialStore.vendors.length > 0) ? initialStore.vendors : defaultStore.vendors,
+  vendorSchedules: initialStore.vendorSchedules || defaultStore.vendorSchedules,
+  baselineProducts: initialStore.baselineProducts || [],
+  rmMappingsData: (initialStore.rmMappingsData || []).filter(r => !isInvalidMaterialCode(r.approvedCode)),
+  purchases: initialStore.purchases || [],
+  sales: initialStore.sales || [],
+  auditLogs: initialStore.auditLogs || []
+};
+
+function persistCurrentStore() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(globalStore));
+  } catch (err) {
+    console.error("Error saving store:", err);
+  }
+}
+
+let listeners = [];
+export function subscribeStore(fn) {
+  listeners.push(fn);
+  return () => { listeners = listeners.filter(cb => cb !== fn); };
+}
+
+export function notifyStore() {
+  persistCurrentStore();
+  listeners.forEach(fn => { try { fn(globalStore); } catch (e) { console.error(e); } });
+}
+
+export function purgeAllTestData() {
+  globalStore.rmMappingsData = [];
+  globalStore.baselineProducts = [];
+  globalStore.purchases = [];
+  globalStore.sales = [];
+  globalStore.auditLogs = [];
+  notifyStore();
+}
+
+export function getActiveRmMapping(gradeName, vendor) {
+  if (!gradeName) return { approvedCode: 'Unspecified', approvedPrice: 0, activeGrade: 'Unspecified', activeWaPrice: 0, isFound: false };
+  const cleanGrade = sanitizeMaterialName(gradeName, '', '', vendor);
+  const { baseRm } = parseMaterialString(cleanGrade);
+  const targetCode = (baseRm || cleanGrade).toLowerCase().trim();
+  const vNorm = normalizeVendorId(vendor);
+
+  const found = (globalStore.rmMappingsData || []).find(r => 
+    r.type === 'RM' && 
+    normalizeVendorId(r.vendor) === vNorm && 
+    (r.approvedCode.toLowerCase().trim() === targetCode || targetCode.includes(r.approvedCode.toLowerCase().trim()) || r.approvedCode.toLowerCase().trim().includes(targetCode))
+  );
+
+  if (found) {
+    const selectedAlts = Array.isArray(found.selectedAlts) && found.selectedAlts.length > 0 
+      ? found.selectedAlts 
+      : [found.alt1Code || found.approvedCode];
+
+    const waPrice = computeCombinedWeightedAverage(selectedAlts, found.approvedCode, found.approvedPrice, vendor);
+    
+    return { 
+      approvedCode: found.approvedCode, 
+      approvedPrice: Number(found.approvedPrice || 0), 
+      activeGrade: selectedAlts.join(' + '), 
+      activeWaPrice: Number(waPrice || found.approvedPrice || 0), 
+      selectedAlts,
+      isFound: true 
+    };
+  }
+
+  const defaultRate = vNorm === 'atomberg' ? 131.00 : 154.00;
+  return { approvedCode: baseRm || cleanGrade, approvedPrice: defaultRate, activeGrade: baseRm || cleanGrade, activeWaPrice: defaultRate, selectedAlts: [baseRm || cleanGrade], isFound: false };
+}
+
+export function getActiveMbMapping(mbGradeName, vendor) {
+  const vNorm = normalizeVendorId(vendor);
+  let targetMb = (mbGradeName || '').toLowerCase().trim();
+  if (!targetMb || targetMb === 'none' || !isNaN(Number(targetMb))) {
+    return { approvedMbCode: 'None', approvedMbPrice: 0, activeMbGrade: 'None', activeMbWaPrice: 0, selectedAlts: [], isFound: false };
+  }
+
+  const found = (globalStore.rmMappingsData || []).find(r => 
+    r.type === 'MB' && 
+    normalizeVendorId(r.vendor) === vNorm && 
+    (r.approvedCode.toLowerCase().trim() === targetMb || targetMb.includes(r.approvedCode.toLowerCase().trim()) || r.approvedCode.toLowerCase().trim().includes(targetMb))
+  );
+
+  if (found) {
+    const selectedAlts = Array.isArray(found.selectedAlts) && found.selectedAlts.length > 0 
+      ? found.selectedAlts 
+      : [found.alt1Code || found.approvedCode];
+
+    const waPrice = computeCombinedWeightedAverage(selectedAlts, found.approvedCode, found.approvedPrice, vendor);
+
+    return { 
+      approvedMbCode: found.approvedCode, 
+      approvedMbPrice: Number(found.approvedPrice || 0), 
+      activeMbGrade: selectedAlts.join(' + '), 
+      activeMbWaPrice: Number(waPrice || found.approvedPrice || 0), 
+      selectedAlts,
+      isFound: true 
+    };
+  }
+
+  const defaultMbRate = vNorm === 'atomberg' ? 154.00 : 242.00;
+  return { approvedMbCode: mbGradeName, approvedMbPrice: defaultMbRate, activeMbGrade: mbGradeName, activeMbWaPrice: defaultMbRate, selectedAlts: [mbGradeName], isFound: false };
+}
+
+export function addOrUpdateVendorMaterial(item) {
+  if (!globalStore.rmMappingsData) globalStore.rmMappingsData = [];
+  const vNorm = normalizeVendorId(item.vendor);
+  const cleanCode = sanitizeMaterialName(item.approvedCode, '', '', item.vendor);
+  if (isInvalidMaterialCode(cleanCode)) return;
+
+  const idx = globalStore.rmMappingsData.findIndex(r => 
+    normalizeVendorId(r.vendor) === vNorm && 
+    r.type === item.type && 
+    r.approvedCode.toLowerCase().trim() === cleanCode.toLowerCase().trim()
+  );
+
+  if (idx >= 0) {
+    globalStore.rmMappingsData[idx] = { 
+      ...globalStore.rmMappingsData[idx], 
+      ...item,
+      approvedCode: cleanCode,
+      selectedAlts: item.selectedAlts || globalStore.rmMappingsData[idx].selectedAlts || [cleanCode],
+      vendor: item.vendor || globalStore.rmMappingsData[idx].vendor 
+    };
+  } else {
+    globalStore.rmMappingsData.push({ 
+      id: `mat-${vNorm}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`, 
+      ...item,
+      approvedCode: cleanCode,
+      selectedAlts: item.selectedAlts || [cleanCode]
+    });
+  }
+  notifyStore();
+}
+
+export function updateRmMappingRow(rowId, updatedFields) {
+  if (!globalStore.rmMappingsData) globalStore.rmMappingsData = [];
+  const idx = globalStore.rmMappingsData.findIndex(r => r.id === rowId);
+  if (idx >= 0) {
+    globalStore.rmMappingsData[idx] = { ...globalStore.rmMappingsData[idx], ...updatedFields };
+    notifyStore();
+  }
+}
+
+export function deleteVendorMaterial(id, vendor) {
+  const target = (globalStore.rmMappingsData || []).find(r => r.id === id);
+  const matCode = target?.approvedCode || id;
+  globalStore.rmMappingsData = (globalStore.rmMappingsData || []).filter(r => r.id !== id);
+
+  addAuditLog({
+    partCode: 'RM_MATRIX',
+    componentName: `Deleted Material Grade: ${matCode}`,
+    vendor: vendor || target?.vendor || 'ALL',
+    modifications: `Removed ${matCode} from matrix registry`,
+    costImpact: 'Matrix Updated',
+    reason: 'Manual Material Deletion'
+  });
+
+  notifyStore();
+}
+
+export function getProductsUsingMaterial(matCode, vendor) {
+  if (!matCode) return [];
+  const vNorm = normalizeVendorId(vendor);
+  const codeClean = matCode.toLowerCase().trim();
+
+  return (globalStore.baselineProducts || []).filter(p => {
+    const matchVendor = vendor === 'ALL' || normalizeVendorId(p.vendor) === vNorm;
+    if (!matchVendor) return false;
+
+    const { baseRm, mbGrade } = parseMaterialString(p.approvedRm || p.baseRm);
+    const rmMatch = (baseRm || '').toLowerCase().trim() === codeClean || (p.baseRm || '').toLowerCase().trim() === codeClean;
+    const mbMatch = (mbGrade || '').toLowerCase().trim() === codeClean || (p.approvedMb || '').toLowerCase().trim() === codeClean;
+
+    return rmMatch || mbMatch;
+  });
+}
+
+export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
+  if (!globalStore.vendorSchedules) globalStore.vendorSchedules = {};
+  const vNorm = normalizeVendorId(vendor);
+
+  globalStore.vendorSchedules[vendor] = {
+    periodFrom,
+    periodTo,
+    savedAt: new Date().toISOString()
+  };
+
+  (globalStore.rmMappingsData || []).forEach(r => {
+    if (normalizeVendorId(r.vendor) === vNorm) {
+      r.periodFrom = periodFrom;
+      r.periodTo = periodTo;
+    }
+  });
+
+  const vendorMaterials = (globalStore.rmMappingsData || []).filter(r => 
+    normalizeVendorId(r.vendor) === vNorm
+  );
+
+  (globalStore.baselineProducts || []).forEach(prod => {
+    if (normalizeVendorId(prod.vendor) === vNorm) {
+      const cleanRm = sanitizeMaterialName(prod.approvedRm || prod.baseRm, prod.componentName, prod.itemCode, prod.vendor);
+      const { baseRm, mbGrade } = parseMaterialString(cleanRm);
+      const matchedRm = vendorMaterials.find(m => m.type === 'RM' && m.approvedCode.toLowerCase().trim() === (baseRm || '').toLowerCase().trim());
+      const matchedMb = vendorMaterials.find(m => m.type === 'MB' && m.approvedCode.toLowerCase().trim() === (mbGrade || '').toLowerCase().trim());
+
+      if (matchedRm) {
+        const selectedAlts = matchedRm.selectedAlts || [matchedRm.approvedCode];
+        const waPrice = computeCombinedWeightedAverage(selectedAlts, matchedRm.approvedCode, matchedRm.approvedPrice, vendor);
+        prod.approvedRmPrice = Number(matchedRm.approvedPrice || prod.approvedRmPrice || 0);
+        prod.activeRmWaPrice = Number(waPrice || matchedRm.approvedPrice);
+      }
+      if (matchedMb) {
+        const selectedAlts = matchedMb.selectedAlts || [matchedMb.approvedCode];
+        const waPrice = computeCombinedWeightedAverage(selectedAlts, matchedMb.approvedCode, matchedMb.approvedPrice, vendor);
+        prod.approvedMbPrice = Number(matchedMb.approvedPrice || prod.approvedMbPrice || 0);
+        prod.activeMbWaPrice = Number(waPrice || matchedMb.approvedPrice);
+      }
+    }
+  });
+
+  addAuditLog({
+    partCode: 'RM_MATRIX',
+    componentName: `Saved Matrix Schedule for ${vendor}`,
+    vendor: vendor,
+    modifications: `Period: ${periodFrom} to ${periodTo} • ${vendorMaterials.length} Materials Saved`,
+    costImpact: 'Matrix Synced',
+    reason: 'Save for Vendor + Period'
+  });
+
+  notifyStore();
+  return { success: true, count: vendorMaterials.length };
+}
+
+export function getVendorBaselineData(vendorId) {
+  const prods = globalStore.baselineProducts || [];
+  if (!vendorId || vendorId === 'ALL') return prods;
+  const vNorm = normalizeVendorId(vendorId);
+  return prods.filter(p => normalizeVendorId(p.vendor) === vNorm);
+}
+
+export function updateBaselineParameters({ itemId, updatedItem, reason }) {
+  const prod = (globalStore.baselineProducts || []).find(p => p.id === itemId || p.itemCode === itemId);
+  if (!prod) return;
+  Object.assign(prod, updatedItem);
+  addAuditLog({
+    partCode: prod.itemCode,
+    componentName: prod.componentName,
+    vendor: prod.vendor,
+    modifications: 'Adjusted parameters in modal',
+    costImpact: `₹${(prod.approvedCost || 0).toFixed(2)}`,
+    reason: reason || 'Manual Spec Adjustment'
+  });
+  notifyStore();
+}
+
+export function addStagedProductsToBaseline(stagedList, vendor) {
+  stagedList.forEach(staged => {
+    const cleanRm = sanitizeMaterialName(staged.approvedRm || staged.baseRm, staged.componentName, staged.itemCode, vendor);
+    const idx = globalStore.baselineProducts.findIndex(p => p.itemCode === staged.itemCode && normalizeVendorId(p.vendor) === normalizeVendorId(vendor));
+    if (idx >= 0) {
+      globalStore.baselineProducts[idx] = { ...globalStore.baselineProducts[idx], ...staged, approvedRm: cleanRm, vendor: vendor || staged.vendor };
+    } else {
+      globalStore.baselineProducts.push({ ...staged, approvedRm: cleanRm, id: `prod-${Date.now()}-${Math.random().toString(36).substr(2,4)}`, vendor: vendor || staged.vendor });
+    }
+  });
+  notifyStore();
+}
+
+export function deleteProductFromBaseline(itemId, vendor) {
+  const vNorm = normalizeVendorId(vendor);
+  globalStore.baselineProducts = (globalStore.baselineProducts || []).filter(p => !( (p.id === itemId || p.itemCode === itemId) && (vendor === 'ALL' || normalizeVendorId(p.vendor) === vNorm) ));
+  addAuditLog({
+    partCode: itemId,
+    componentName: `Deleted Product ${itemId}`,
+    vendor: vendor || 'ALL',
+    modifications: 'Deleted product from baseline master',
+    costImpact: '0.00',
+    reason: 'Manual deletion'
+  });
+  notifyStore();
+}
+
+export function clearVendorBaselineProducts(vendorName) {
+  const vNorm = normalizeVendorId(vendorName);
+  globalStore.baselineProducts = (globalStore.baselineProducts || []).filter(p => normalizeVendorId(p.vendor) !== vNorm);
+  addAuditLog({
+    partCode: 'BASELINE_PURGE',
+    componentName: `Purged Baseline Products for ${vendorName}`,
+    vendor: vendorName,
+    modifications: 'Cleared baseline table',
+    costImpact: '0 Parts',
+    reason: 'Manual Baseline Purge'
+  });
+  notifyStore();
+}
+
+export function addAuditLog(entry) {
+  globalStore.auditLogs = globalStore.auditLogs || [];
+  globalStore.auditLogs.unshift({
+    timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    ...entry
+  });
+}
+
+export function toggleGlobalLock() { 
+  globalStore.isLocked = !globalStore.isLocked; 
+  notifyStore(); 
+}
+
+export function toggleMatrixLock() { 
+  globalStore.isMatrixLocked = !globalStore.isMatrixLocked; 
+  notifyStore(); 
+}
+
+export function addDayWisePurchase(rec) { (globalStore.purchases = globalStore.purchases || []).unshift(rec); notifyStore(); return { success: true }; }
+export function addDayWiseSales(rec) { (globalStore.sales = globalStore.sales || []).unshift(rec); notifyStore(); return { success: true }; }
+export function onboardVendorWithBlueprint() { notifyStore(); }
+STORE_EOF
+
+echo "==> 3. Updating RMPriceMatrixPage.jsx with Searchable Multi-Select Dropdown & Combined WA calculation..."
+cat << 'RM_PAGE_EOF' > src/modules/module2-rm-matrix/RMPriceMatrixPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Lock, 
@@ -33,13 +542,13 @@ import {
   saveVendorPeriodSchedule, 
   addOrUpdateVendorMaterial, 
   computeGradeWeightedAverage,
-  computeCombinedWeightedAverageWithQty,
+  computeCombinedWeightedAverage,
   normalizeVendorId,
   isInvalidMaterialCode
 } from '../../shared/masterStore';
 
-// Searchable Multi-Select Component with QTY displayed in options & header
-function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled = false, approvedCode = '', totalInwardQty = 0 }) {
+// Searchable Multi-Select Component for Alternate RM lots
+function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled = false, approvedCode = '' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef(null);
@@ -75,12 +584,11 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
       >
         <div className="truncate flex items-center gap-1.5 pr-2">
           {selectedCount === 0 ? (
-            <span className="text-slate-500 italic font-medium">Select Alternate Lots...</span>
+            <span className="text-slate-500 italic">Select Alternate Lots...</span>
           ) : (
-            <div className="flex flex-wrap gap-1.5 items-center max-w-[340px] truncate">
-              {/* Badge with Count + Total Active Inward Qty */}
-              <span className="bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-md font-black text-[10px]">
-                {selectedCount} Lot{selectedCount > 1 ? 's' : ''} Selected {totalInwardQty > 0 ? `(${totalInwardQty.toLocaleString()} kg)` : ''}
+            <div className="flex flex-wrap gap-1 items-center max-w-[280px] truncate">
+              <span className="bg-blue-100 text-blue-900 px-1.5 py-0.2 rounded font-black text-[10px]">
+                {selectedCount} Lot{selectedCount > 1 ? 's' : ''} Selected
               </span>
               <span className="font-bold text-slate-900 truncate">
                 {selected.join(', ')}
@@ -92,7 +600,7 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-80 md:w-[420px] bg-white border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-2">
+        <div className="absolute left-0 top-full mt-1 w-80 md:w-96 bg-white border border-slate-300 rounded-2xl shadow-2xl z-50 p-2 space-y-2">
           {/* Search Box */}
           <div className="relative flex items-center bg-slate-100 rounded-xl px-2.5 py-1.5 border border-slate-200">
             <Search className="w-3.5 h-3.5 text-slate-500 shrink-0 mr-1.5" />
@@ -111,8 +619,8 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
             )}
           </div>
 
-          {/* Options List with Inward WA Rate & Qty */}
-          <div className="max-h-60 overflow-y-auto space-y-1 divide-y divide-slate-100">
+          {/* Options List */}
+          <div className="max-h-56 overflow-y-auto space-y-1 divide-y divide-slate-100">
             {/* Contract Baseline Option */}
             <div 
               onClick={() => onToggle(approvedCode)}
@@ -143,22 +651,15 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
                     onClick={() => onToggle(opt.code)}
                     className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-xl cursor-pointer transition pt-1.5"
                   >
-                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-2">
-                      <div className={`w-4 h-4 rounded-md flex items-center justify-center border transition shrink-0 ${
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center border transition ${
                         isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
                       }`}>
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
-                      <div className="truncate">
-                        <div className="font-bold text-slate-900 text-xs truncate">{opt.code}</div>
-                        {/* Marked Place: Display Inward WA Rate & Inward Quantity */}
-                        <div className="flex items-center gap-2 text-[10px] font-mono mt-0.5">
-                          <span className="text-blue-700 font-bold">Inward WA: ₹{opt.price.toFixed(2)}/kg</span>
-                          <span className="text-slate-400">•</span>
-                          <span className="text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                            Qty: {opt.qty.toLocaleString()} kg
-                          </span>
-                        </div>
+                      <div>
+                        <div className="font-bold text-slate-900 text-xs">{opt.code}</div>
+                        <div className="text-[10px] text-blue-700 font-mono font-semibold">Inward WA: ₹{opt.price.toFixed(2)}/kg</div>
                       </div>
                     </div>
                   </div>
@@ -168,13 +669,11 @@ function SearchableMultiSelect({ options = [], selected = [], onToggle, disabled
           </div>
 
           <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[11px]">
-            <span className="text-slate-600 font-bold">
-              {selectedCount} lot{selectedCount !== 1 ? 's' : ''} active {totalInwardQty > 0 ? `(${totalInwardQty.toLocaleString()} kg)` : ''}
-            </span>
+            <span className="text-slate-500 font-bold">{selectedCount} alternate lot{selectedCount !== 1 ? 's' : ''} active</span>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="px-3.5 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs cursor-pointer hover:bg-slate-800"
+              className="px-3 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs cursor-pointer hover:bg-slate-800"
             >
               Done
             </button>
@@ -260,18 +759,16 @@ export default function RMPriceMatrixPage() {
     normalizeVendorId(l.vendor) === currentVendorNorm
   );
 
-  // Group purchased lots with WA price AND total quantity
   const purchaseOptionsMap = new Map();
   purchases.forEach(p => {
     const gradeName = (p.grade || p.itemCode || '').trim();
     if (!gradeName) return;
     if (!purchaseOptionsMap.has(gradeName)) {
-      const { waRate, totalQty } = computeCombinedWeightedAverageWithQty([gradeName], '', 0, selectedVendor);
+      const wa = computeGradeWeightedAverage(gradeName, selectedVendor);
       purchaseOptionsMap.set(gradeName, {
-        label: `${gradeName} (Inward WA: ₹${waRate.toFixed(2)}) • Qty: ${totalQty.toLocaleString()} kg`,
+        label: `${gradeName} (Inward WA: ₹${wa.toFixed(2)})`,
         code: gradeName,
-        price: waRate,
-        qty: totalQty
+        price: wa
       });
     }
   });
@@ -296,6 +793,7 @@ export default function RMPriceMatrixPage() {
     updateRmMappingRow(rowId, { approvedPrice: parseFloat(val) || 0 });
   };
 
+  // Toggle selection of an alternate lot in multi-select mode
   const handleToggleAltOption = (rowId, currentSelectedArray, toggledCode, approvedCode, approvedPrice) => {
     if (isRowDisabled) return;
     let updatedArray = [...(currentSelectedArray || [])];
@@ -310,11 +808,11 @@ export default function RMPriceMatrixPage() {
       updatedArray = [approvedCode];
     }
 
-    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(updatedArray, approvedCode, approvedPrice, selectedVendor);
+    const newCombinedWa = computeCombinedWeightedAverage(updatedArray, approvedCode, approvedPrice, selectedVendor);
 
     updateRmMappingRow(rowId, { 
       selectedAlts: updatedArray,
-      alt1Price: waRate
+      alt1Price: newCombinedWa
     });
   };
 
@@ -484,7 +982,7 @@ export default function RMPriceMatrixPage() {
                 Vendor: {selectedVendor}
               </span>
             </div>
-            <p className="text-[11px] text-slate-300">Multi-Select Alternate Lots, Quantity Tracking & Combined WA Calculation</p>
+            <p className="text-[11px] text-slate-300">Multi-Select Alternate Lots & Combined Purchase Weighted Average (WA) Engine</p>
           </div>
         </div>
 
@@ -606,7 +1104,7 @@ export default function RMPriceMatrixPage() {
         </div>
       </div>
 
-      {/* TAB 1: RM PRICE MATRIX */}
+      {/* TAB 1: RM PRICE MATRIX WITH SEARCHABLE MULTI-SELECT ALTERNATE DROPDOWN */}
       {activeTab === 'matrix' && (
         <div className="bg-white rounded-2xl border border-slate-300 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
@@ -615,7 +1113,7 @@ export default function RMPriceMatrixPage() {
                 <tr>
                   <th className="py-3 px-4 w-72">APPROVED RM/MB CODE & USAGE</th>
                   <th className="py-3 px-4 text-center w-36">APPROVED PRICE (₹/KG)</th>
-                  <th className="py-3 px-4">SEARCHABLE ALTERNATE RM LOTS (WITH INWARD QTY)</th>
+                  <th className="py-3 px-4">SEARCHABLE ALTERNATE RM LOTS (MULTI-SELECT)</th>
                   <th className="py-3 px-4 text-center w-48 text-amber-300">COMBINED WA PRICE (₹/KG)</th>
                   <th className="py-3 px-3 text-center w-20">ACTION</th>
                 </tr>
@@ -634,7 +1132,7 @@ export default function RMPriceMatrixPage() {
                       ? m.selectedAlts 
                       : [m.approvedCode];
                     
-                    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(selectedAlts, m.approvedCode, m.approvedPrice, selectedVendor);
+                    const combinedWaPrice = computeCombinedWeightedAverage(selectedAlts, m.approvedCode, m.approvedPrice, selectedVendor);
 
                     return (
                       <tr key={m.id} className="hover:bg-slate-50 transition font-medium">
@@ -681,14 +1179,13 @@ export default function RMPriceMatrixPage() {
                           </div>
                         </td>
 
-                        {/* 3. Searchable Multi-Select Alternate Lots (Showing Total Qty) */}
+                        {/* 3. Searchable Multi-Select Alternate Lots */}
                         <td className="py-3 px-4">
                           <div className="space-y-1">
                             <SearchableMultiSelect
                               options={allPurchasedGradeOptions}
                               selected={selectedAlts}
                               approvedCode={m.approvedCode}
-                              totalInwardQty={totalQty}
                               disabled={isRowDisabled}
                               onToggle={(toggledCode) => handleToggleAltOption(m.id, selectedAlts, toggledCode, m.approvedCode, m.approvedPrice)}
                             />
@@ -702,9 +1199,9 @@ export default function RMPriceMatrixPage() {
                         <td className="py-3 px-4 text-center">
                           <div className="inline-block bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl">
                             <div className="font-mono font-black text-blue-900 text-sm">
-                              ₹{waRate.toFixed(2)}
+                              ₹{combinedWaPrice.toFixed(2)}
                             </div>
-                            <div className="text-[9px] text-slate-600 font-bold uppercase tracking-wider mt-0.5">
+                            <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
                               {selectedAlts.length > 1 ? `${selectedAlts.length} Lots Combined` : 'Single Active Lot'}
                             </div>
                           </div>
@@ -1127,3 +1624,17 @@ export default function RMPriceMatrixPage() {
     </div>
   );
 }
+RM_PAGE_EOF
+
+echo "==> 4. Verifying build with Vite..."
+npm run build
+
+echo "==> 5. Restarting local dev server on port 5173..."
+fuser -k 5173/tcp 2>/dev/null || killall -9 node 2>/dev/null || true
+rm -rf node_modules/.vite 2>/dev/null || true
+nohup npm run dev -- --host 0.0.0.0 --port 5173 > /tmp/vite_server.log 2>&1 &
+sleep 2
+
+echo "-------------------------------------------------------------------"
+echo "✅ SEARCHABLE MULTI-SELECT ALTERNATE RM DROPDOWN & WA DEPLOYED!"
+echo "-------------------------------------------------------------------"

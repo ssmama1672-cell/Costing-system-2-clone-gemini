@@ -1,8 +1,8 @@
 // ============================================================================
-// GLOBAL MASTER DATA STORE (Strictly Isolated & Vendor-Scoped with Auto-Sanitization)
+// GLOBAL MASTER DATA STORE (Multi-Select Alternate Lots, Qty & Combined WA)
 // ============================================================================
 
-const STORAGE_KEY = 'CPC_MASTER_STORE_DEV_V2_PROD_RELEASE_V5';
+const STORAGE_KEY = 'CPC_MASTER_STORE_DEV_V2_MULTI_ALT_WA_V2';
 
 export function normalizeVendorId(vendor) {
   if (!vendor) return 'haier';
@@ -70,24 +70,70 @@ export function parseMaterialString(rawMaterialStr) {
   return { baseRm: cleanStr, mbGrade: '' };
 }
 
+// Compute Combined Weighted Average AND Total Inward Quantity
+export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
+  const purchases = globalStore.purchases || [];
+  const vNorm = normalizeVendorId(vendor);
+  
+  if (!Array.isArray(selectedCodesArray) || selectedCodesArray.length === 0) {
+    return { waRate: Number(approvedPrice || 0), totalQty: 0 };
+  }
+
+  let totalQty = 0;
+  let totalCost = 0;
+
+  selectedCodesArray.forEach(code => {
+    if (!code) return;
+    const cClean = code.toString().toLowerCase().trim();
+    const isBaseline = cClean === (approvedCode || '').toLowerCase().trim() || cClean.includes('contract baseline');
+
+    if (!isBaseline) {
+      const matching = purchases.filter(p => {
+        const pGrade = (p.grade || p.itemCode || p.rawMaterial || p.supplier || '').toString().toLowerCase().trim();
+        const pNorm = normalizeVendorId(p.vendor);
+        const matchGrade = pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
+        const matchVendor = !vendor || vNorm === 'all' || pNorm === vNorm;
+        return matchGrade && matchVendor;
+      });
+
+      matching.forEach(m => {
+        const qty = Number(m.qty || m.quantity || 0);
+        const rate = Number(m.rate || m.netRate || m.price || 0);
+        if (qty > 0 && rate > 0) {
+          totalQty += qty;
+          totalCost += (qty * rate);
+        }
+      });
+    }
+  });
+
+  const waRate = totalQty > 0 ? Number((totalCost / totalQty).toFixed(2)) : Number(approvedPrice || 0);
+  return { waRate, totalQty };
+}
+
+export function computeCombinedWeightedAverage(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
+  return computeCombinedWeightedAverageWithQty(selectedCodesArray, approvedCode, approvedPrice, vendor).waRate;
+}
+
+export function computeGradeWeightedAverage(gradeOrCode, vendor) {
+  return computeCombinedWeightedAverage([gradeOrCode], '', 0, vendor);
+}
+
 function loadPersistedStore() {
   if (typeof window === 'undefined') return null;
   try {
-    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_PROD_RELEASE_V4') || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_PROD_RELEASE');
+    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_MULTI_ALT_WA_V1') || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_PROD_RELEASE_V5');
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.rmMappingsData) {
-        parsed.rmMappingsData = parsed.rmMappingsData.filter(r => !isInvalidMaterialCode(r.approvedCode));
-      }
-      if (parsed.baselineProducts) {
-        parsed.baselineProducts = parsed.baselineProducts.map(p => {
-          const cleanRm = sanitizeMaterialName(p.approvedRm || p.baseRm, p.componentName, p.itemCode, p.vendor);
-          const { baseRm, mbGrade } = parseMaterialString(cleanRm);
+        parsed.rmMappingsData = parsed.rmMappingsData.filter(r => !isInvalidMaterialCode(r.approvedCode)).map(r => {
+          let selectedAlts = r.selectedAlts;
+          if (!Array.isArray(selectedAlts)) {
+            selectedAlts = [r.alt1Code || r.approvedCode].filter(Boolean);
+          }
           return {
-            ...p,
-            approvedRm: cleanRm,
-            baseRm: baseRm || cleanRm,
-            approvedMb: p.approvedMb && !isInvalidMaterialCode(p.approvedMb) ? p.approvedMb : (mbGrade || 'White MB')
+            ...r,
+            selectedAlts
           };
         });
       }
@@ -155,35 +201,13 @@ export function notifyStore() {
   listeners.forEach(fn => { try { fn(globalStore); } catch (e) { console.error(e); } });
 }
 
-export function computeGradeWeightedAverage(gradeOrCode, vendor) {
-  const purchases = globalStore.purchases || [];
-  if (!gradeOrCode) return 0;
-  const gClean = gradeOrCode.toString().toLowerCase().trim();
-  const vNorm = normalizeVendorId(vendor);
-
-  const matching = purchases.filter(p => {
-    const pGrade = (p.grade || p.itemCode || p.rawMaterial || p.supplier || '').toString().toLowerCase().trim();
-    const pNorm = normalizeVendorId(p.vendor);
-    const matchGrade = pGrade === gClean || pGrade.includes(gClean) || gClean.includes(pGrade);
-    const matchVendor = !vendor || vNorm === 'all' || pNorm === vNorm;
-    return matchGrade && matchVendor;
-  });
-
-  let totalQty = 0;
-  let totalCost = 0;
-  matching.forEach(m => {
-    const qty = Number(m.qty || m.quantity || 0);
-    const rate = Number(m.rate || m.netRate || m.price || 0);
-    if (qty > 0 && rate > 0) {
-      totalQty += qty;
-      totalCost += (qty * rate);
-    }
-  });
-
-  if (totalQty > 0) {
-    return Number((totalCost / totalQty).toFixed(2));
-  }
-  return 0;
+export function purgeAllTestData() {
+  globalStore.rmMappingsData = [];
+  globalStore.baselineProducts = [];
+  globalStore.purchases = [];
+  globalStore.sales = [];
+  globalStore.auditLogs = [];
+  notifyStore();
 }
 
 export function getActiveRmMapping(gradeName, vendor) {
@@ -200,26 +224,32 @@ export function getActiveRmMapping(gradeName, vendor) {
   );
 
   if (found) {
-    const activeKey = found.activeAlt || 'alt1';
-    const waPrice = Number(found[`${activeKey}Price`] !== undefined ? found[`${activeKey}Price`] : (found.alt1Price || found.approvedPrice || 0));
+    const selectedAlts = Array.isArray(found.selectedAlts) && found.selectedAlts.length > 0 
+      ? found.selectedAlts 
+      : [found.alt1Code || found.approvedCode];
+
+    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(selectedAlts, found.approvedCode, found.approvedPrice, vendor);
+    
     return { 
       approvedCode: found.approvedCode, 
       approvedPrice: Number(found.approvedPrice || 0), 
-      activeGrade: found[`${activeKey}Code`] || found.approvedCode, 
-      activeWaPrice: Number(waPrice || 0), 
+      activeGrade: selectedAlts.join(' + '), 
+      activeWaPrice: Number(waRate || found.approvedPrice || 0), 
+      selectedAlts,
+      totalInwardQty: totalQty,
       isFound: true 
     };
   }
 
   const defaultRate = vNorm === 'atomberg' ? 131.00 : 154.00;
-  return { approvedCode: baseRm || cleanGrade, approvedPrice: defaultRate, activeGrade: baseRm || cleanGrade, activeWaPrice: defaultRate, isFound: false };
+  return { approvedCode: baseRm || cleanGrade, approvedPrice: defaultRate, activeGrade: baseRm || cleanGrade, activeWaPrice: defaultRate, selectedAlts: [baseRm || cleanGrade], totalInwardQty: 0, isFound: false };
 }
 
 export function getActiveMbMapping(mbGradeName, vendor) {
   const vNorm = normalizeVendorId(vendor);
   let targetMb = (mbGradeName || '').toLowerCase().trim();
   if (!targetMb || targetMb === 'none' || !isNaN(Number(targetMb))) {
-    return { approvedMbCode: 'None', approvedMbPrice: 0, activeMbGrade: 'None', activeMbWaPrice: 0, isFound: false };
+    return { approvedMbCode: 'None', approvedMbPrice: 0, activeMbGrade: 'None', activeMbWaPrice: 0, selectedAlts: [], totalInwardQty: 0, isFound: false };
   }
 
   const found = (globalStore.rmMappingsData || []).find(r => 
@@ -229,19 +259,25 @@ export function getActiveMbMapping(mbGradeName, vendor) {
   );
 
   if (found) {
-    const activeKey = found.activeAlt || 'alt1';
-    const waPrice = Number(found[`${activeKey}Price`] !== undefined ? found[`${activeKey}Price`] : (found.alt1Price || found.approvedPrice || 0));
+    const selectedAlts = Array.isArray(found.selectedAlts) && found.selectedAlts.length > 0 
+      ? found.selectedAlts 
+      : [found.alt1Code || found.approvedCode];
+
+    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(selectedAlts, found.approvedCode, found.approvedPrice, vendor);
+
     return { 
       approvedMbCode: found.approvedCode, 
       approvedMbPrice: Number(found.approvedPrice || 0), 
-      activeMbGrade: found[`${activeKey}Code`] || found.approvedCode, 
-      activeMbWaPrice: Number(waPrice || 0), 
+      activeMbGrade: selectedAlts.join(' + '), 
+      activeMbWaPrice: Number(waRate || found.approvedPrice || 0), 
+      selectedAlts,
+      totalInwardQty: totalQty,
       isFound: true 
     };
   }
 
   const defaultMbRate = vNorm === 'atomberg' ? 154.00 : 242.00;
-  return { approvedMbCode: mbGradeName, approvedMbPrice: defaultMbRate, activeMbGrade: mbGradeName, activeMbWaPrice: defaultMbRate, isFound: false };
+  return { approvedMbCode: mbGradeName, approvedMbPrice: defaultMbRate, activeMbGrade: mbGradeName, activeMbWaPrice: defaultMbRate, selectedAlts: [mbGradeName], totalInwardQty: 0, isFound: false };
 }
 
 export function addOrUpdateVendorMaterial(item) {
@@ -261,13 +297,15 @@ export function addOrUpdateVendorMaterial(item) {
       ...globalStore.rmMappingsData[idx], 
       ...item,
       approvedCode: cleanCode,
+      selectedAlts: item.selectedAlts || globalStore.rmMappingsData[idx].selectedAlts || [cleanCode],
       vendor: item.vendor || globalStore.rmMappingsData[idx].vendor 
     };
   } else {
     globalStore.rmMappingsData.push({ 
       id: `mat-${vNorm}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`, 
       ...item,
-      approvedCode: cleanCode 
+      approvedCode: cleanCode,
+      selectedAlts: item.selectedAlts || [cleanCode]
     });
   }
   notifyStore();
@@ -345,14 +383,16 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
       const matchedMb = vendorMaterials.find(m => m.type === 'MB' && m.approvedCode.toLowerCase().trim() === (mbGrade || '').toLowerCase().trim());
 
       if (matchedRm) {
-        const activeKey = matchedRm.activeAlt || 'alt1';
+        const selectedAlts = matchedRm.selectedAlts || [matchedRm.approvedCode];
+        const waPrice = computeCombinedWeightedAverage(selectedAlts, matchedRm.approvedCode, matchedRm.approvedPrice, vendor);
         prod.approvedRmPrice = Number(matchedRm.approvedPrice || prod.approvedRmPrice || 0);
-        prod.activeRmWaPrice = Number(matchedRm[`${activeKey}Price`] !== undefined ? matchedRm[`${activeKey}Price`] : matchedRm.approvedPrice);
+        prod.activeRmWaPrice = Number(waPrice || matchedRm.approvedPrice);
       }
       if (matchedMb) {
-        const activeKey = matchedMb.activeAlt || 'alt1';
+        const selectedAlts = matchedMb.selectedAlts || [matchedMb.approvedCode];
+        const waPrice = computeCombinedWeightedAverage(selectedAlts, matchedMb.approvedCode, matchedMb.approvedPrice, vendor);
         prod.approvedMbPrice = Number(matchedMb.approvedPrice || prod.approvedMbPrice || 0);
-        prod.activeMbWaPrice = Number(matchedMb[`${activeKey}Price`] !== undefined ? matchedMb[`${activeKey}Price`] : matchedMb.approvedPrice);
+        prod.activeMbWaPrice = Number(waPrice || matchedMb.approvedPrice);
       }
     }
   });
