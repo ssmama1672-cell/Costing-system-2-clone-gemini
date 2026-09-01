@@ -41,7 +41,7 @@ export function calculateAtombergCost(params = {}) {
   const cavity = Number(params.cavity || 2);
 
   const theoreticalShots = cycleTime > 0 ? (28800 / cycleTime) : 0;
-  const partsPerShift = Number((theoreticalShots * efficiency * cavity).toFixed(2)); // Row 26 = 1102.98
+  const partsPerShift = cycleTime > 0 ? (((8 * 3600) / cycleTime) * (cavity || 1) * ((efficiencyPct || 95) / 100)) : 0; // Row 26 = 1102.98
   const processCostPerPc = partsPerShift > 0 ? Number((shiftTariff / partsPerShift).toFixed(2)) : 1.81; // Row 27 = 1.81
 
   const handlingBop = Number((bopCost * 0.03).toFixed(2)); // Row 28 = 0.00

@@ -35,7 +35,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     mbFreight: Number(product.mbFreight !== undefined ? product.mbFreight : 2.00),
     masterbatchPct: Number(product.masterbatchPct !== undefined ? product.masterbatchPct : 4),
     partWeight: Number(product.netWeight !== undefined ? product.netWeight : (isAtomberg ? 37.00 : 372.00)),
-    runnerWeight: Number(product.runnerWeight !== undefined ? product.runnerWeight : (isAtomberg ? 1.00 : 0.00)),
+    runnerWeight: Number(product.runnerWeight ?? initialParams.runnerWeight ?? (isAtomberg ? 1.00 : 0.00)),
+    netWeight: Number(product.netWeight ?? product.partWeight ?? initialParams.netWeight ?? 0),
     bopCost: Number(product.bopCost || 0),
     machineTonnage: Number(product.machineTonnage || (isAtomberg ? 200 : 600)),
     shiftTariff: Number(product.shiftTariff || (isAtomberg ? 2000 : 4800)),
@@ -71,7 +72,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     runningMbFreight: Number(initialParams.runningMbFreight ?? product.mbFreight ?? 2.00),
     runningMbPct: Number(initialParams.runningMbPct ?? product.masterbatchPct ?? 4),
     runningPartWeight: Number(initialParams.runningNetWeight ?? product.netWeight ?? (isAtomberg ? 37.00 : 372.00)),
-    runningRunnerWeight: Number(initialParams.runningRunnerWeight ?? product.runnerWeight ?? (isAtomberg ? 1.00 : 0.00)),
+    runningRunnerWeight: Number(initialParams.runningRunnerWeight ?? product.runnerWeight ?? initialParams.runnerWeight ?? (isAtomberg ? 1.00 : 0.00)),
+    runningNetWeight: Number(initialParams.runningNetWeight ?? product.netWeight ?? product.partWeight ?? 0),
     runningBopCost: Number(initialParams.runningBopCost ?? product.bopCost ?? 0),
     runningShiftTariff: Number(initialParams.runningShiftTariff ?? product.shiftTariff ?? (isAtomberg ? 2000 : 4800)),
     runningCycleTime: Number(initialParams.runningCycleTime ?? product.cycleTimeApproved ?? (isAtomberg ? 47 : 70)),
@@ -140,7 +142,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   const haierBaseCalc = calculateHaierCost({
       runnerRecoveryOption: formData.runnerRecoveryOption || 'opt2',
     cavity: formData.cavity,
-    netWeight: formData.partWeight,
+    netWeight: formData.netWeight || formData.partWeight,
     runnerWeight: formData.runnerWeight,
     shotWeight: formData.partWeight * formData.cavity + formData.runnerWeight,
     meltLossPct: formData.meltLossPct,
@@ -169,7 +171,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   const haierRunningCalc = calculateHaierCost({
       runnerRecoveryOption: formData.runnerRecoveryOption || 'opt2',
     cavity: formData.runningCavity,
-    netWeight: formData.runningPartWeight,
+    netWeight: formData.runningNetWeight || formData.runningPartWeight || formData.netWeight,
     runnerWeight: formData.runningRunnerWeight,
     shotWeight: formData.runningPartWeight * formData.runningCavity + formData.runningRunnerWeight,
     meltLossPct: formData.runningMeltLossPct,
@@ -210,7 +212,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
       approvedCost: contractTotal,
       simulatedCost: runningTotal,
       approvedRm: cleanMaterialStr,
-      netWeight: formData.partWeight,
+      netWeight: formData.netWeight || formData.partWeight,
       runnerWeight: formData.runnerWeight,
       approvedRmPrice: approvedRmRate,
       approvedMbPrice: approvedMbRate,
@@ -464,7 +466,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">16</td>
                   <td className="py-1.5 px-3 font-bold text-amber-950">Runner weight grams</td>
                   <td className="py-1.5 px-3 text-center">Gms</td>
-                  <td className="py-1.5 px-4 text-right font-mono">{formData.runnerWeight}g</td>
+                  <td className="py-1.5 px-4 text-right">{readOnly ? <span className="font-mono">{formData.runnerWeight}g</span> : <input type="number" value={formData.runnerWeight} onChange={e => setFormData({...formData, runnerWeight: Number(e.target.value) || 0})} className="w-20 px-2 py-0.5 border border-amber-300 rounded text-right font-bold text-slate-800 bg-amber-50/50 focus:bg-white" />}</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
                       <span className="font-bold text-blue-800">{formData.runningRunnerWeight}g</span>
@@ -516,40 +518,94 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">22</td>
-                  <td className="py-1.5 px-3 font-bold">Shift rate</td>
-                  <td className="py-1.5 px-3 text-center">₹/shift</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-bold">₹{formData.shiftTariff}</td>
-                  <td className="py-1.5 px-4 text-right">
-                    {readOnly ? (
-                      <span className="font-bold text-blue-800">₹{formData.runningShiftTariff}</span>
-                    ) : (
-                      <input type="number" value={formData.runningShiftTariff} onChange={e => setFormData({ ...formData, runningShiftTariff: Number(e.target.value) || 0 })} className="w-24 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
-                    )}
-                  </td>
-                  <td className="py-1.5 px-3 text-right font-mono">₹{(formData.shiftTariff - formData.runningShiftTariff).toFixed(2)}</td>
-                </tr>
-                <tr className="bg-amber-50/40">
-                  <td className="py-1.5 px-3 font-mono text-slate-500">23</td>
-                  <td className="py-1.5 px-3 font-black text-amber-950">Cycle time (seconds)</td>
-                  <td className="py-1.5 px-3 text-center">Sec</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-bold">{formData.cycleTimeApproved}s</td>
-                  <td className="py-1.5 px-4 text-right">
-                    {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningCycleTime}s</span>
-                    ) : (
-                      <input type="number" value={formData.runningCycleTime} onChange={e => setFormData({ ...formData, runningCycleTime: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
-                    )}
-                  </td>
-                  <td className="py-1.5 px-3 text-right font-mono">{(formData.cycleTimeApproved - formData.runningCycleTime).toFixed(1)}s</td>
-                </tr>
-                <tr>
-                  <td className="py-1.5 px-3 font-mono text-slate-500">24</td>
-                  <td className="py-1.5 px-3">Machine Efficiency %</td>
-                  <td className="py-1.5 px-3 text-center">%</td>
-                  <td className="py-1.5 px-4 text-right font-mono">{formData.efficiencyPct}%</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">{formData.runningEfficiencyPct}%</td>
-                  <td className="py-1.5 px-3 text-right font-mono">0%</td>
-                </tr>
+                    <td className="py-1.5 px-3 font-bold text-slate-800">Shift rate</td>
+                    <td className="py-1.5 px-3 text-center text-xs text-slate-500">₹/shift</td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-bold text-slate-800">₹{formData.shiftTariff}</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          value={formData.shiftTariff} 
+                          onChange={e => setFormData({ ...formData, shiftTariff: Number(e.target.value) || 0 })} 
+                          className="w-24 px-2 py-0.5 border border-amber-300 rounded text-right font-bold text-slate-800 bg-amber-50/50 focus:bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-bold text-blue-800">₹{formData.runningShiftTariff}</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          value={formData.runningShiftTariff} 
+                          onChange={e => setFormData({ ...formData, runningShiftTariff: Number(e.target.value) || 0 })} 
+                          className="w-24 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700">₹{(formData.shiftTariff - formData.runningShiftTariff).toFixed(2)}</td>
+                  </tr>
+                  <tr className="bg-amber-50/40">
+                    <td className="py-1.5 px-3 font-mono text-slate-500">23</td>
+                    <td className="py-1.5 px-3 font-black text-amber-950">Cycle time (seconds)</td>
+                    <td className="py-1.5 px-3 text-center text-xs text-slate-500">Sec</td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-bold text-amber-950">{formData.cycleTimeApproved}s</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          value={formData.cycleTimeApproved} 
+                          onChange={e => setFormData({ ...formData, cycleTimeApproved: Number(e.target.value) || 0 })} 
+                          className="w-20 px-2 py-0.5 border border-amber-300 rounded text-right font-bold text-amber-950 bg-amber-50/50 focus:bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-bold text-blue-800">{formData.runningCycleTime}s</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          value={formData.runningCycleTime} 
+                          onChange={e => setFormData({ ...formData, runningCycleTime: Number(e.target.value) || 0 })} 
+                          className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700">{(formData.cycleTimeApproved - formData.runningCycleTime).toFixed(1)}s</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1.5 px-3 font-mono text-slate-500">24</td>
+                    <td className="py-1.5 px-3 font-semibold text-slate-800">Machine Efficiency %</td>
+                    <td className="py-1.5 px-3 text-center text-xs text-slate-500">%</td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-mono">{formData.efficiencyPct}%</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          value={formData.efficiencyPct} 
+                          onChange={e => setFormData({ ...formData, efficiencyPct: Number(e.target.value) || 0 })} 
+                          className="w-16 px-2 py-0.5 border border-amber-300 rounded text-right font-bold text-slate-800 bg-amber-50/50 focus:bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-mono text-blue-800">{formData.runningEfficiencyPct}%</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          value={formData.runningEfficiencyPct} 
+                          onChange={e => setFormData({ ...formData, runningEfficiencyPct: Number(e.target.value) || 0 })} 
+                          className="w-16 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700">{(formData.efficiencyPct - formData.runningEfficiencyPct).toFixed(1)}%</td>
+                  </tr>
                 <tr className="bg-amber-50/30">
                   <td className="py-1.5 px-3 font-mono text-slate-500">25</td>
                   <td className="py-1.5 px-3 font-semibold text-slate-800">No of cavity</td>
