@@ -132,7 +132,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     efficiencyPct: formData.runningEfficiencyPct,
     tonnage: formData.runningTonnage || formData.tonnage,
     bopCost: formData.runningBopCost !== undefined ? formData.runningBopCost : formData.bopCost,
-    postOpCost: formData.runningPostOpCost !== undefined ? formData.runningPostOpCost : formData.postOpCost,
+    postOpCost: formData.runningPostOpCost !== undefined ? formData.runningPostOpCost : (formData.postOpCost !== undefined ? formData.postOpCost : 0),
     packingCost: formData.runningPackingCost !== undefined ? formData.runningPackingCost : formData.packingCost,
     transportCost: formData.runningTransportCost !== undefined ? formData.runningTransportCost : (formData.runningFreightCost || formData.transportCost || 0),
     otherCost: formData.runningOtherCost !== undefined ? formData.runningOtherCost : formData.otherCost
@@ -233,6 +233,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
         runningBopCost: formData.runningBopCost,
         runningPackingCost: formData.runningPackingCost,
         runningTransportCost: formData.runningTransportCost,
+        postOpCost: formData.postOpCost,
+        runningPostOpCost: formData.runningPostOpCost,
         runningOtherCost: formData.runningOtherCost,
         runningHaierOverheadPackage: formData.runningHaierOverheadPackage,
         runningFoamPolybag: formData.runningFoamPolybag,
@@ -646,12 +648,38 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">29</td>
-                  <td className="py-1.5 px-3 text-slate-700">Post Operation Cost</td>
-                  <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.postOpCost || 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.postOpCost || 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.postOpCost - atombergRunningCalc.postOpCost).toFixed(2)}</td>
-                </tr>
+                    <td className="py-1.5 px-3 font-bold text-slate-800">Post Operation Cost</td>
+                    <td className="py-1.5 px-3 text-center text-xs text-slate-500">₹/pc</td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-bold text-slate-800">₹{Number(formData.postOpCost || 0).toFixed(2)}</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={formData.postOpCost} 
+                          onChange={e => setFormData({ ...formData, postOpCost: Number(e.target.value) || 0 })} 
+                          className="w-20 px-2 py-0.5 border border-amber-300 rounded text-right font-bold text-slate-800 bg-amber-50/50 focus:bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-4 text-right">
+                      {readOnly ? (
+                        <span className="font-bold text-blue-800">₹{Number(formData.runningPostOpCost || 0).toFixed(2)}</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={formData.runningPostOpCost} 
+                          onChange={e => setFormData({ ...formData, runningPostOpCost: Number(e.target.value) || 0 })} 
+                          className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" 
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700">
+                      ₹{Number((formData.postOpCost || 0) - (formData.runningPostOpCost || 0)).toFixed(2)}
+                    </td>
+                  </tr>
                 <tr className="bg-slate-100 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">30</td>
                   <td className="py-1.5 px-3">Total Process Cost</td>

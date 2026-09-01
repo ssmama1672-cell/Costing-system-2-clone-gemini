@@ -3,55 +3,73 @@
 // ============================================================================
 
 export function calculateAtombergCost(params = {}) {
+  // 1. RM & MB Base Rates
   const rmBase = Number(params.rmBase !== undefined ? params.rmBase : 131.00);
   const rmIccRate = Number(params.rmIccRate !== undefined ? params.rmIccRate : 0.01);
   const rmFreight = Number(params.rmFreight !== undefined ? params.rmFreight : 1.50);
   
   const rmIcc = Number((rmBase * rmIccRate).toFixed(2));
-  const rmLanded = Number((rmBase + rmIcc + rmFreight).toFixed(2));
+  const rmLanded = Number((rmBase + rmIcc + rmFreight).toFixed(2)); // Row 8
 
   const mbBase = Number(params.mbBase !== undefined ? params.mbBase : 154.00);
   const mbIccRate = Number(params.mbIccRate !== undefined ? params.mbIccRate : 0.01);
   const mbFreight = Number(params.mbFreight !== undefined ? params.mbFreight : 2.00);
   
   const mbIcc = Number((mbBase * mbIccRate).toFixed(2));
-  const mbLanded = Number((mbBase + mbIcc + mbFreight).toFixed(2));
+  const mbLanded = Number((mbBase + mbIcc + mbFreight).toFixed(2)); // Row 12
 
+  // 2. MB % & Blended RM Rate: = Row 8*(1-Row 13) + Row 12*Row 13
   const mbPctRaw = Number(params.mbPct !== undefined ? params.mbPct : ((Number(params.masterbatchPct) || 4) / 100));
   const mbPct = mbPctRaw > 1 ? mbPctRaw / 100 : mbPctRaw;
-  const blendedRmRate = Number(( (rmLanded * (1 - mbPct)) + (mbLanded * mbPct) ).toFixed(2));
+  const blendedRmRate = Number(( (rmLanded * (1 - mbPct)) + (mbLanded * mbPct) ).toFixed(2)); // Row 14
 
+  // 3. Weights & Gross Weight: = Row 15 + Row 16
   const partWt = Number(params.partWt !== undefined ? params.partWt : (params.netWeight !== undefined ? params.netWeight : 37.00));
   const runnerWt = Number(params.runnerWt !== undefined ? params.runnerWt : (params.runnerWeight !== undefined ? params.runnerWeight : 1.00));
-  const grossWt = Number((partWt + runnerWt).toFixed(2));
+  const grossWt = Number((partWt + runnerWt).toFixed(2)); // Row 17
 
-  const rmCostPerPc = Number(((grossWt / 1000) * blendedRmRate).toFixed(2));
-  const bopCost = Number(params.bopCost || 0);
-  const rmPlusBop = Number((rmCostPerPc + bopCost).toFixed(2));
+  // 4. RM Cost / Pc: = SUM(Row 17/1000)*Row 14 (Row 18)
+  const rmCostPerPc = Number(((grossWt / 1000) * blendedRmRate).toFixed(2)); // Row 18
+  const bopCost = Number(params.bopCost || 0); // Row 19
+  const rmPlusBop = Number((rmCostPerPc + bopCost).toFixed(2)); // Row 20
 
+  // 5. Machine Conversion
   const tonnage = Number(params.tonnage || params.machineTonnage || 200);
   const shiftTariff = Number(params.shiftTariff !== undefined ? params.shiftTariff : 2000);
   const cycleTime = Number(params.cycleTime !== undefined ? params.cycleTime : (params.cycleTimeApproved || 47));
   const efficiencyPct = Number(params.efficiencyPct !== undefined ? params.efficiencyPct : 95);
   const cavity = Number(params.cavity !== undefined ? params.cavity : 2);
 
-  const partsPerShift = cycleTime > 0 ? (((8 * 3600) / cycleTime) * cavity * (efficiencyPct / 100)) : 0;
-  const processCostPerPc = partsPerShift > 0 ? Number((shiftTariff / partsPerShift).toFixed(2)) : 0;
-  const handlingBop = Number((bopCost * 0.03).toFixed(2));
-  const postOpCost = Number((params.postOpCost !== undefined ? params.postOpCost : 0).toFixed(2));
-  const totalProcessCost = Number((processCostPerPc + handlingBop + postOpCost).toFixed(2));
+  const partsPerShift = cycleTime > 0 ? (((8 * 3600) / cycleTime) * cavity * (efficiencyPct / 100)) : 0; // Row 26
+  const processCostPerPc = partsPerShift > 0 ? Number((shiftTariff / partsPerShift).toFixed(2)) : 0; // Row 27
+  
+  // Row 28: Handling BOP = BOP Cost * 3%
+  const handlingBop = Number((bopCost * 0.03).toFixed(2)); // Row 28
+  
+  // Row 29: Post Operation Cost (Editable user input)
+  const postOpCost = Number(params.postOpCost !== undefined ? params.postOpCost : 0); // Row 29
+  
+  // Row 30: Total Process Cost = Process cost / pc + Handling BOP (3%) + Post Operation Cost
+  const totalProcessCost = Number((processCostPerPc + handlingBop + postOpCost).toFixed(2)); // Row 30
 
-  const subTotalForOh = rmPlusBop + totalProcessCost;
-  const ohProfit = Number((subTotalForOh * 0.12).toFixed(2));
-  const inProcessRejection = Number(((subTotalForOh + ohProfit) * 0.04).toFixed(2));
-  const runnerCredit = Number((((runnerWt / 1000) * 25)).toFixed(2));
+  // 6. Overheads & Margin: (Total Process Cost + RM Cost) * 12% & 4%
+  const rmPlusProcess = rmCostPerPc + totalProcessCost;
+  const ohProfit = Number((rmPlusProcess * 0.12).toFixed(2)); // Row 31
+  const inProcessRejection = Number((rmPlusProcess * 0.04).toFixed(2)); // Row 32
 
-  const packingCost = Number(params.packingCost !== undefined ? params.packingCost : 0);
-  const transportCost = Number(params.transportCost !== undefined ? params.transportCost : 0);
-  const mouldMaintenance = Number(params.mouldMaintenance !== undefined ? params.mouldMaintenance : 0);
-  const otherCost = Number(params.otherCost !== undefined ? params.otherCost : 0);
+  // 7. Runner Recovery Credit (credit is fixed -25/kg on runnerWt)
+  const runnerCredit = Number((((runnerWt / 1000) * 25)).toFixed(2)); // Row 33 (deduction)
 
-  const finalLanded = Number((subTotalForOh + ohProfit + inProcessRejection - runnerCredit + packingCost + transportCost + mouldMaintenance + otherCost).toFixed(2));
+  // 8. Commercials
+  const packingCost = Number(params.packingCost !== undefined ? params.packingCost : 0); // Row 34
+  const transportCost = Number(params.transportCost !== undefined ? params.transportCost : 0); // Row 35
+  
+  // Row 36: Mould maintenance cost = Total Process Cost * 2%
+  const mouldMaintenance = Number((totalProcessCost * 0.02).toFixed(2)); // Row 36
+  const otherCost = Number(params.otherCost !== undefined ? params.otherCost : 0); // Row 37
+
+  // 9. Final Landed Cost
+  const finalLanded = Number((rmCostPerPc + bopCost + totalProcessCost + ohProfit + inProcessRejection - runnerCredit + packingCost + transportCost + mouldMaintenance + otherCost).toFixed(2));
 
   return {
     rmLanded,
@@ -78,7 +96,7 @@ export function calculateAtombergCost(params = {}) {
     mouldMaintenance,
     otherCost,
     totalCost: finalLanded,
-    finalLanded,
+    finalLanded: finalLanded,
     finalPieceCost: finalLanded
   };
 }
