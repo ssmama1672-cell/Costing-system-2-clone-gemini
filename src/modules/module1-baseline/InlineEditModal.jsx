@@ -102,41 +102,34 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   // Calculate Atomberg Cost
   const atombergBaseCalc = calculateAtombergCost({
     rmBase: approvedRmRate,
-    rmFreight: formData.rmFreight,
     mbBase: approvedMbRate,
-    mbFreight: formData.mbFreight,
-    partWt: formData.partWeight,
+    mbPct: formData.masterbatchPct,
+    partWt: formData.netWeight || formData.partWeight,
     runnerWt: formData.runnerWeight,
-    mbPct: formData.masterbatchPct / 100,
-    bopCost: formData.bopCost,
-    cycleTime: formData.cycleTimeApproved,
     cavity: formData.cavity,
-    tonnage: formData.machineTonnage,
     shiftTariff: formData.shiftTariff,
-    efficiency: formData.efficiencyPct / 100,
+    cycleTime: formData.cycleTimeApproved,
+    efficiencyPct: formData.efficiencyPct,
+    tonnage: formData.tonnage,
+    bopCost: formData.bopCost,
     packingCost: formData.packingCost,
-    transportCost: formData.transportCost,
-    otherCost: formData.otherCost
+    transportCost: formData.freightCost || formData.transportCost
   });
 
   const atombergRunningCalc = calculateAtombergCost({
-    efficiencyPct: Number(formData.runningEfficiencyPct || formData.efficiencyPct || 95),
     rmBase: runningRmWaRate,
-    rmFreight: formData.runningRmFreight,
     mbBase: runningMbWaRate,
-    mbFreight: formData.runningMbFreight,
-    partWt: formData.runningPartWeight,
+    mbPct: formData.runningMbPct,
+    partWt: formData.runningNetWeight || formData.runningPartWeight || formData.netWeight,
     runnerWt: formData.runningRunnerWeight,
-    mbPct: formData.runningMbPct / 100,
-    bopCost: formData.runningBopCost,
-    cycleTime: formData.runningCycleTime,
     cavity: formData.runningCavity,
-    tonnage: formData.machineTonnage,
     shiftTariff: formData.runningShiftTariff,
-    efficiency: formData.runningEfficiencyPct / 100,
-    packingCost: formData.runningPackingCost,
-    transportCost: formData.runningTransportCost,
-    otherCost: formData.runningOtherCost
+    cycleTime: formData.runningCycleTime,
+    efficiencyPct: formData.runningEfficiencyPct,
+    tonnage: formData.runningTonnage || formData.tonnage,
+    bopCost: formData.runningBopCost !== undefined ? formData.runningBopCost : formData.bopCost,
+    packingCost: formData.runningPackingCost !== undefined ? formData.runningPackingCost : formData.packingCost,
+    transportCost: formData.runningFreightCost || formData.freightCost || formData.transportCost
   });
 
   // Calculate Haier Cost
