@@ -354,24 +354,24 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">6</td>
                   <td className="py-1.5 px-3 text-slate-700">RM ICC (1%)</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.rmIcc.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.rmIcc.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.rmIcc || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.rmIcc || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.rmIcc - atombergRunningCalc.rmIcc).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">7</td>
                   <td className="py-1.5 px-3 text-slate-700">RM Freight</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{formData.rmFreight.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{formData.runningRmFreight.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(formData.rmFreight || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(formData.runningRmFreight || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(formData.rmFreight - formData.runningRmFreight).toFixed(2)}</td>
                 </tr>
                 <tr className="bg-slate-50 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">8</td>
                   <td className="py-1.5 px-3 text-slate-900">RM Landed Cost</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{atombergBaseCalc.rmLanded.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{atombergRunningCalc.rmLanded.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{Number(atombergBaseCalc.rmLanded || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{Number(atombergRunningCalc.rmLanded || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.rmLanded - atombergRunningCalc.rmLanded).toFixed(2)}</td>
                 </tr>
                 <tr>
@@ -386,24 +386,24 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">10</td>
                   <td className="py-1.5 px-3 text-slate-700">MB ICC (1%)</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.mbIcc.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.mbIcc.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.mbIcc || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.mbIcc || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.mbIcc - atombergRunningCalc.mbIcc).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">11</td>
                   <td className="py-1.5 px-3 text-slate-700">MB Freight</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{formData.mbFreight.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{formData.runningMbFreight.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(formData.mbFreight || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(formData.runningMbFreight || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(formData.mbFreight - formData.runningMbFreight).toFixed(2)}</td>
                 </tr>
                 <tr className="bg-slate-50 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">12</td>
                   <td className="py-1.5 px-3 text-slate-900">MB Landed Cost</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{atombergBaseCalc.mbLanded.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{atombergRunningCalc.mbLanded.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{Number(atombergBaseCalc.mbLanded || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{Number(atombergRunningCalc.mbLanded || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.mbLanded - atombergRunningCalc.mbLanded).toFixed(2)}</td>
                 </tr>
                 <tr className="bg-purple-50/40">
@@ -438,8 +438,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">14</td>
                   <td className="py-1.5 px-3 text-slate-900">Blended RM Rate</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{atombergBaseCalc.blendedRmRate.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{atombergRunningCalc.blendedRmRate.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{Number(atombergBaseCalc.blendedRmRate || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{Number(atombergRunningCalc.blendedRmRate || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.blendedRmRate - atombergRunningCalc.blendedRmRate).toFixed(2)}</td>
                 </tr>
                 <tr className="bg-amber-50/30">
@@ -474,32 +474,32 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">17</td>
                   <td className="py-1.5 px-3">Gross Weight</td>
                   <td className="py-1.5 px-3 text-center">Gms</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-bold">{atombergBaseCalc.grossWt.toFixed(2)}g</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-bold text-blue-800">{atombergRunningCalc.grossWt.toFixed(2)}g</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-bold">{Number(atombergBaseCalc.grossWt || 0).toFixed(2)}g</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-bold text-blue-800">{Number(atombergRunningCalc.grossWt || 0).toFixed(2)}g</td>
                   <td className="py-1.5 px-3 text-right font-mono">{(atombergBaseCalc.grossWt - atombergRunningCalc.grossWt).toFixed(2)}g</td>
                 </tr>
                 <tr className="bg-emerald-50/40 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">18</td>
                   <td className="py-1.5 px-3 text-emerald-950">RM cost</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-black text-emerald-900">₹{atombergBaseCalc.rmCostPerPc.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-black text-blue-900">₹{atombergRunningCalc.rmCostPerPc.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-black text-emerald-900">₹{Number(atombergBaseCalc.rmCostPerPc || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-black text-blue-900">₹{Number(atombergRunningCalc.rmCostPerPc || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.rmCostPerPc - atombergRunningCalc.rmCostPerPc).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">19</td>
                   <td className="py-1.5 px-3 text-slate-700">BOP Cost</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{formData.bopCost.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{formData.runningBopCost.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(formData.bopCost || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(formData.runningBopCost || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(formData.bopCost - formData.runningBopCost).toFixed(2)}</td>
                 </tr>
                 <tr className="bg-slate-50 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">20</td>
                   <td className="py-1.5 px-3 text-slate-900">RM + BOP</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{atombergBaseCalc.rmPlusBop.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{atombergRunningCalc.rmPlusBop.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-slate-900">₹{Number(atombergBaseCalc.rmPlusBop || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-900">₹{Number(atombergRunningCalc.rmPlusBop || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.rmPlusBop - atombergRunningCalc.rmPlusBop).toFixed(2)}</td>
                 </tr>
                 <tr>
@@ -618,64 +618,64 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">26</td>
                   <td className="py-1.5 px-3 font-bold text-slate-900">Parts/shift</td>
                   <td className="py-1.5 px-3 text-center">Nos</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">{atombergBaseCalc.partsPerShift.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-black text-blue-900">{atombergRunningCalc.partsPerShift.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">{Number(atombergBaseCalc.partsPerShift || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-black text-blue-900">{Number(atombergRunningCalc.partsPerShift || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">{(atombergBaseCalc.partsPerShift - atombergRunningCalc.partsPerShift).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">27</td>
                   <td className="py-1.5 px-3">Process cost / pc</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.processCostPerPc.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.processCostPerPc.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.processCostPerPc || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.processCostPerPc || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.processCostPerPc - atombergRunningCalc.processCostPerPc).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">28</td>
                   <td className="py-1.5 px-3 text-slate-700">Handling BOP (3%)</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.handlingBop.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.handlingBop.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.handlingBop || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.handlingBop || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹0.00</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">29</td>
                   <td className="py-1.5 px-3 text-slate-700">Post Operation Cost</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.postOpCost.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.postOpCost.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.postOpCost || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.postOpCost || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.postOpCost - atombergRunningCalc.postOpCost).toFixed(2)}</td>
                 </tr>
                 <tr className="bg-slate-100 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">30</td>
                   <td className="py-1.5 px-3">Total Process Cost</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">₹{atombergBaseCalc.totalProcessCost.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono font-black text-blue-900">₹{atombergRunningCalc.totalProcessCost.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">₹{Number(atombergBaseCalc.totalProcessCost || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-black text-blue-900">₹{Number(atombergRunningCalc.totalProcessCost || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.totalProcessCost - atombergRunningCalc.totalProcessCost).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">31</td>
                   <td className="py-1.5 px-3">OH & Profit (12%)</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.ohAndProfit.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.ohAndProfit.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.ohAndProfit || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.ohAndProfit || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.ohAndProfit - atombergRunningCalc.ohAndProfit).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">32</td>
                   <td className="py-1.5 px-3">In-process rejection (4%)</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.inProcessRejection.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.inProcessRejection.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.inProcessRejection || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.inProcessRejection || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.inProcessRejection - atombergRunningCalc.inProcessRejection).toFixed(2)}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3 font-mono text-slate-500">33</td>
                   <td className="py-1.5 px-3 font-medium text-emerald-800">Runner Recovery Credit (-₹25/kg)</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-emerald-800">-₹{atombergBaseCalc.runnerRecoveryCredit.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-emerald-800">-₹{atombergRunningCalc.runnerRecoveryCredit.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-emerald-800">-₹{Number(atombergBaseCalc.runnerRecoveryCredit || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-emerald-800">-₹{Number(atombergRunningCalc.runnerRecoveryCredit || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono text-slate-400">-</td>
                 </tr>
                 <tr>
@@ -684,7 +684,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">₹{formData.packingCost.toFixed(2)}</span>
+                      <span className="font-bold">₹{Number(formData.packingCost || 0).toFixed(2)}</span>
                     ) : (
                       <input 
                         type="number" 
@@ -697,7 +697,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">₹{formData.runningPackingCost.toFixed(2)}</span>
+                      <span className="font-bold text-blue-800">₹{Number(formData.runningPackingCost || 0).toFixed(2)}</span>
                     ) : (
                       <input 
                         type="number" 
@@ -716,7 +716,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">₹{formData.transportCost.toFixed(2)}</span>
+                      <span className="font-bold">₹{Number(formData.transportCost || 0).toFixed(2)}</span>
                     ) : (
                       <input 
                         type="number" 
@@ -729,7 +729,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">₹{formData.runningTransportCost.toFixed(2)}</span>
+                      <span className="font-bold text-blue-800">₹{Number(formData.runningTransportCost || 0).toFixed(2)}</span>
                     ) : (
                       <input 
                         type="number" 
@@ -746,8 +746,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-mono text-slate-500">36</td>
                   <td className="py-1.5 px-3">Mould maintenance (2% Process)</td>
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
-                  <td className="py-1.5 px-4 text-right font-mono">₹{atombergBaseCalc.mouldMaintenance.toFixed(2)}</td>
-                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{atombergRunningCalc.mouldMaintenance.toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono">₹{Number(atombergBaseCalc.mouldMaintenance || 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(atombergRunningCalc.mouldMaintenance || 0).toFixed(2)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(atombergBaseCalc.mouldMaintenance - atombergRunningCalc.mouldMaintenance).toFixed(2)}</td>
                 </tr>
                 <tr>
@@ -756,7 +756,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center">₹/pc</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">₹{formData.otherCost.toFixed(2)}</span>
+                      <span className="font-bold">₹{Number(formData.otherCost || 0).toFixed(2)}</span>
                     ) : (
                       <input 
                         type="number" 
@@ -769,7 +769,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">₹{formData.runningOtherCost.toFixed(2)}</span>
+                      <span className="font-bold text-blue-800">₹{Number(formData.runningOtherCost || 0).toFixed(2)}</span>
                     ) : (
                       <input 
                         type="number" 
@@ -786,8 +786,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-3 px-3 font-mono text-amber-400">38</td>
                   <td className="py-3 px-3 uppercase text-amber-400">FINAL LANDED COST / PC</td>
                   <td className="py-3 px-3 text-center">₹/pc</td>
-                  <td className="py-3 px-4 text-right font-mono text-amber-300 text-sm">₹{atombergBaseCalc.finalLanded.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-mono text-emerald-400 text-sm">₹{atombergRunningCalc.finalLanded.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-amber-300 text-sm">₹{Number(atombergBaseCalc.finalLanded || 0).toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-emerald-400 text-sm">₹{Number(atombergRunningCalc.finalLanded || 0).toFixed(2)}</td>
                   <td className={`py-3 px-3 text-right font-mono ${profitLossDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {profitLossDelta >= 0 ? `+₹${profitLossDelta.toFixed(2)}` : `-₹${Math.abs(profitLossDelta).toFixed(2)}`}
                   </td>
@@ -1123,14 +1123,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-purple-900">₹{formData.haierOverheadPackage.toFixed(4)}</span>
+                      <span className="font-bold text-purple-900">₹{Number(formData.haierOverheadPackage || 0).toFixed(4)}</span>
                     ) : (
                       <input type="number" step="0.0001" value={formData.haierOverheadPackage} onChange={e => setFormData({ ...formData, haierOverheadPackage: Number(e.target.value) || 0 })} className="w-28 px-2 py-0.5 border border-purple-300 rounded text-right font-bold text-purple-900 bg-white" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">₹{formData.runningHaierOverheadPackage.toFixed(4)}</span>
+                      <span className="font-bold text-blue-800">₹{Number(formData.runningHaierOverheadPackage || 0).toFixed(4)}</span>
                     ) : (
                       <input type="number" step="0.0001" value={formData.runningHaierOverheadPackage} onChange={e => setFormData({ ...formData, runningHaierOverheadPackage: Number(e.target.value) || 0 })} className="w-28 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1143,14 +1143,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.foamPolybag > 0 ? `₹${formData.foamPolybag.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.foamPolybag > 0 ? `₹${Number(formData.foamPolybag || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.foamPolybag} onChange={e => setFormData({ ...formData, foamPolybag: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningFoamPolybag > 0 ? `₹${formData.runningFoamPolybag.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningFoamPolybag > 0 ? `₹${Number(formData.runningFoamPolybag || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningFoamPolybag} onChange={e => setFormData({ ...formData, runningFoamPolybag: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1163,14 +1163,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.plasticBin > 0 ? `₹${formData.plasticBin.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.plasticBin > 0 ? `₹${Number(formData.plasticBin || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.plasticBin} onChange={e => setFormData({ ...formData, plasticBin: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningPlasticBin > 0 ? `₹${formData.runningPlasticBin.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningPlasticBin > 0 ? `₹${Number(formData.runningPlasticBin || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningPlasticBin} onChange={e => setFormData({ ...formData, runningPlasticBin: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1183,14 +1183,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.freightCost > 0 ? `₹${formData.freightCost.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.freightCost > 0 ? `₹${Number(formData.freightCost || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.freightCost} onChange={e => setFormData({ ...formData, freightCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningFreightCost > 0 ? `₹${formData.runningFreightCost.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningFreightCost > 0 ? `₹${Number(formData.runningFreightCost || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningFreightCost} onChange={e => setFormData({ ...formData, runningFreightCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1203,14 +1203,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.secondaryOp1 > 0 ? `₹${formData.secondaryOp1.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.secondaryOp1 > 0 ? `₹${Number(formData.secondaryOp1 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.secondaryOp1} onChange={e => setFormData({ ...formData, secondaryOp1: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningSecondaryOp1 > 0 ? `₹${formData.runningSecondaryOp1.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningSecondaryOp1 > 0 ? `₹${Number(formData.runningSecondaryOp1 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningSecondaryOp1} onChange={e => setFormData({ ...formData, runningSecondaryOp1: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1223,14 +1223,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.secondaryOp2 > 0 ? `₹${formData.secondaryOp2.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.secondaryOp2 > 0 ? `₹${Number(formData.secondaryOp2 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.secondaryOp2} onChange={e => setFormData({ ...formData, secondaryOp2: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningSecondaryOp2 > 0 ? `₹${formData.runningSecondaryOp2.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningSecondaryOp2 > 0 ? `₹${Number(formData.runningSecondaryOp2 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningSecondaryOp2} onChange={e => setFormData({ ...formData, runningSecondaryOp2: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1243,14 +1243,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.screenPrint1 !== 0 ? `₹${formData.screenPrint1.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.screenPrint1 !== 0 ? `₹${Number(formData.screenPrint1 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.screenPrint1} onChange={e => setFormData({ ...formData, screenPrint1: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningScreenPrint1 !== 0 ? `₹${formData.runningScreenPrint1.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningScreenPrint1 !== 0 ? `₹${Number(formData.runningScreenPrint1 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningScreenPrint1} onChange={e => setFormData({ ...formData, runningScreenPrint1: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1263,14 +1263,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.screenPrint2 !== 0 ? `₹${formData.screenPrint2.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.screenPrint2 !== 0 ? `₹${Number(formData.screenPrint2 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.screenPrint2} onChange={e => setFormData({ ...formData, screenPrint2: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningScreenPrint2 !== 0 ? `₹${formData.runningScreenPrint2.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningScreenPrint2 !== 0 ? `₹${Number(formData.runningScreenPrint2 || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningScreenPrint2} onChange={e => setFormData({ ...formData, runningScreenPrint2: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1283,14 +1283,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.assemblyCost > 0 ? `₹${formData.assemblyCost.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.assemblyCost > 0 ? `₹${Number(formData.assemblyCost || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.assemblyCost} onChange={e => setFormData({ ...formData, assemblyCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningAssemblyCost > 0 ? `₹${formData.runningAssemblyCost.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningAssemblyCost > 0 ? `₹${Number(formData.runningAssemblyCost || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningAssemblyCost} onChange={e => setFormData({ ...formData, runningAssemblyCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1303,14 +1303,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.bopCost > 0 ? `₹${formData.bopCost.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.bopCost > 0 ? `₹${Number(formData.bopCost || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.bopCost} onChange={e => setFormData({ ...formData, bopCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningBopCost > 0 ? `₹${formData.runningBopCost.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningBopCost > 0 ? `₹${Number(formData.runningBopCost || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningBopCost} onChange={e => setFormData({ ...formData, runningBopCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1323,14 +1323,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.mouldMaintenance > 0 ? `₹${formData.mouldMaintenance.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.mouldMaintenance > 0 ? `₹${Number(formData.mouldMaintenance || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.mouldMaintenance} onChange={e => setFormData({ ...formData, mouldMaintenance: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningMouldMaintenance > 0 ? `₹${formData.runningMouldMaintenance.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningMouldMaintenance > 0 ? `₹${Number(formData.runningMouldMaintenance || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningMouldMaintenance} onChange={e => setFormData({ ...formData, runningMouldMaintenance: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1343,14 +1343,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.qualityInspection > 0 ? `₹${formData.qualityInspection.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.qualityInspection > 0 ? `₹${Number(formData.qualityInspection || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.qualityInspection} onChange={e => setFormData({ ...formData, qualityInspection: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningQualityInspection > 0 ? `₹${formData.runningQualityInspection.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningQualityInspection > 0 ? `₹${Number(formData.runningQualityInspection || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningQualityInspection} onChange={e => setFormData({ ...formData, runningQualityInspection: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1363,14 +1363,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">-</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-emerald-700">{formData.iccReduce !== 0 ? `₹${formData.iccReduce.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-emerald-700">{formData.iccReduce !== 0 ? `₹${Number(formData.iccReduce || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.iccReduce} onChange={e => setFormData({ ...formData, iccReduce: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-emerald-700">{formData.runningIccReduce !== 0 ? `₹${formData.runningIccReduce.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-emerald-700">{formData.runningIccReduce !== 0 ? `₹${Number(formData.runningIccReduce || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningIccReduce} onChange={e => setFormData({ ...formData, runningIccReduce: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1383,14 +1383,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold">{formData.scrapAdj !== 0 ? `₹${formData.scrapAdj.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold">{formData.scrapAdj !== 0 ? `₹${Number(formData.scrapAdj || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.scrapAdj} onChange={e => setFormData({ ...formData, scrapAdj: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
                     )}
                   </td>
                   <td className="py-1.5 px-4 text-right">
                     {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningScrapAdj !== 0 ? `₹${formData.runningScrapAdj.toFixed(2)}` : '-'}</span>
+                      <span className="font-bold text-blue-800">{formData.runningScrapAdj !== 0 ? `₹${Number(formData.runningScrapAdj || 0).toFixed(2)}` : '-'}</span>
                     ) : (
                       <input type="number" step="0.01" value={formData.runningScrapAdj} onChange={e => setFormData({ ...formData, runningScrapAdj: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
                     )}
@@ -1402,8 +1402,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-3 px-3 font-mono text-amber-400">38</td>
                   <td className="py-3 px-3 uppercase text-amber-400">TOTAL COST</td>
                   <td className="py-3 px-3 text-center">Rs</td>
-                  <td className="py-3 px-4 text-right font-mono text-amber-300 text-sm">₹{haierBaseCalc.totalCost.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-mono text-emerald-400 text-sm">₹{haierRunningCalc.totalCost.toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-amber-300 text-sm">₹{Number(haierBaseCalc.totalCost || 0).toFixed(2)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-emerald-400 text-sm">₹{Number(haierRunningCalc.totalCost || 0).toFixed(2)}</td>
                   <td className={`py-3 px-3 text-right font-mono ${profitLossDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {profitLossDelta >= 0 ? `+₹${profitLossDelta.toFixed(2)}` : `-₹${Math.abs(profitLossDelta).toFixed(2)}`}
                   </td>

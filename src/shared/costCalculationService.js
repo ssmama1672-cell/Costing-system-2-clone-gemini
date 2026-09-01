@@ -59,9 +59,15 @@ export function calculateAtombergCost(params = {}) {
   const transportCost = Number(params.transportCost || 0.06);
   const totalCost = Number((subTotalForOh + ohProfit + inProcessRejection - runnerCredit + packingCost + transportCost).toFixed(2));
 
+  const mouldMaintenance = Number(params.mouldMaintenance || 0);
+  const otherCost = Number(params.otherCost || 0);
+  const finalLanded = Number((subTotalForOh + ohProfit + inProcessRejection - runnerCredit + packingCost + transportCost + mouldMaintenance + otherCost).toFixed(2));
+
   return {
     rmLanded,
+    rmIcc,
     mbLanded,
+    mbIcc,
     blendedRmRate,
     grossWt,
     rmCostPerPc,
@@ -73,12 +79,17 @@ export function calculateAtombergCost(params = {}) {
     postOpCost,
     totalProcessCost,
     ohProfit,
+    ohAndProfit: ohProfit,
     inProcessRejection,
     runnerCredit,
+    runnerRecoveryCredit: runnerCredit,
     packingCost,
     transportCost,
-    totalCost,
-    finalPieceCost: totalCost
+    mouldMaintenance,
+    otherCost,
+    totalCost: finalLanded,
+    finalLanded: finalLanded,
+    finalPieceCost: finalLanded
   };
 }
 
