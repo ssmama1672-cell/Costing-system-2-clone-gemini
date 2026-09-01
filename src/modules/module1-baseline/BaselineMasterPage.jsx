@@ -344,21 +344,21 @@ export default function BaselineMasterPage() {
               calcResult = excelTotalCost > 0 ? excelTotalCost : h.totalCost;
             } else {
               const a = calculateAtombergCost({
-                rmBase: rmBaseRate,
-                mbBase: mbBaseRate,
-                partWt: partWt,
-                runnerWt: runnerWt,
-                mbPct: mbPct / 100,
-                bopCost: bopCost,
-                cycleTime: cycleTime,
-                cavity: cavity,
-                tonnage: tonnage,
-                shiftTariff: tariff,
-                postOpCost: 1.73,
-                packingCost: packingCost,
-                transportCost: transportCost,
-                otherCost: 0.00
-              });
+                  rmBase: rmBaseRate,
+                  mbBase: mbBaseRate,
+                  partWt: partWt,
+                  runnerWt: runnerWt,
+                  mbPct: mbPct / 100,
+                  bopCost: bopCost,
+                  cycleTime: cycleTime,
+                  cavity: cavity,
+                  tonnage: tonnage,
+                  shiftTariff: tariff,
+                  postOpCost: Number(row.postOpCost || 0),
+                  packingCost: packingCost,
+                  transportCost: transportCost,
+                  otherCost: 0.00
+                });
               calcResult = excelTotalCost > 0 ? excelTotalCost : a.finalLanded;
             }
 
@@ -510,22 +510,22 @@ export default function BaselineMasterPage() {
       computedStagedTotal = Number(activeStaged.approvedCost || haierStagedCalc.totalCost || 0);
     } else {
       atomStagedCalc = calculateAtombergCost({
-        rmBase: 131,
-        mbBase: 154,
-        partWt: activeStaged.netWeight,
-        runnerWt: activeStaged.runnerWeight,
-        mbPct: (activeStaged.masterbatchPct || 4) / 100,
-        bopCost: 0,
-        cycleTime: activeStaged.cycleTimeApproved || 47,
-        cavity: activeStaged.cavity || 2,
-        tonnage: activeStaged.machineTonnage || 200,
-        shiftTariff: activeStaged.shiftTariff || 2000,
-        postOpCost: 1.73,
-        packingCost: activeStaged.packingCost !== undefined ? activeStaged.packingCost : 0.86,
-        transportCost: activeStaged.transportCost !== undefined ? activeStaged.transportCost : 0.62,
-        otherCost: 0.00
-      });
-      computedStagedTotal = Number(activeStaged.approvedCost || atomStagedCalc.finalLanded || 0);
+          rmBase: Number(activeStaged.rmBaseRate || 131),
+          mbBase: Number(activeStaged.mbBaseRate || 154),
+          partWt: Number(activeStaged.netWeight || activeStaged.partWeight || 37),
+          runnerWt: Number(activeStaged.runnerWeight || 1),
+          mbPct: (Number(activeStaged.masterbatchPct) || 4) / 100,
+          bopCost: Number(activeStaged.bopCost || 0),
+          cycleTime: Number(activeStaged.cycleTimeApproved || 47),
+          cavity: Number(activeStaged.cavity || 2),
+          tonnage: Number(activeStaged.machineTonnage || 200),
+          shiftTariff: Number(activeStaged.shiftTariff || 2000),
+          postOpCost: Number(activeStaged.postOpCost || 0),
+          packingCost: Number(activeStaged.packingCost || 0),
+          transportCost: Number(activeStaged.transportCost || activeStaged.freightCost || 0),
+          otherCost: Number(activeStaged.otherCost || 0)
+        });
+      computedStagedTotal = Number(activeStaged.approvedCost || (atomStagedCalc && atomStagedCalc.finalLanded) || 0);
     }
   }
 
