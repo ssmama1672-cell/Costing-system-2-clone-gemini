@@ -352,7 +352,7 @@ export function purgeAllTestData() {
       supabase.from('purchases').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
       supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
       supabase.from('audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-    ]).catch(console.error);
+    ]).then(null, console.error);
   }
   notifyStore();
 }
@@ -473,7 +473,7 @@ export function addOrUpdateVendorMaterial(item) {
       period_from: item.periodFrom || '2026-08-01',
       period_to: item.periodTo || '2026-08-31',
       updated_at: new Date().toISOString()
-    }).catch(console.error);
+    }).then(null, console.error);
   }
 }
 
@@ -491,7 +491,7 @@ export function updateRmMappingRow(rowId, updatedFields) {
         selected_alts: r.selectedAlts || [],
         alt1_price: Number(r.alt1Price || 0),
         updated_at: new Date().toISOString()
-      }).eq('id', rowId).catch(console.error);
+      }).eq('id', rowId).then(null, console.error);
     }
   }
 }
@@ -513,7 +513,7 @@ export function deleteVendorMaterial(id, vendor) {
   notifyStore();
 
   if (supabase) {
-    supabase.from('rm_mappings').delete().eq('id', id).catch(console.error);
+    supabase.from('rm_mappings').delete().eq('id', id).then(null, console.error);
   }
 }
 
@@ -594,7 +594,7 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
       period_from: periodFrom,
       period_to: periodTo,
       saved_at: new Date().toISOString()
-    }, { onConflict: 'vendor_id,period_from,period_to' }).catch(console.error);
+    }, { onConflict: 'vendor_id,period_from,period_to' }).then(null, console.error);
   }
 
   return { success: true, count: vendorMaterials.length };
@@ -665,7 +665,7 @@ export function updateBaselineParameters({ itemId, updatedItem, reason }) {
       other_cost: Number(prod.otherCost || 0),
       parameters: prod.parameters || {},
       updated_at: new Date().toISOString()
-    }).catch(console.error);
+    }).then(null, console.error);
   }
 }
 
@@ -734,7 +734,7 @@ export function addStagedProductsToBaseline(stagedList, vendor) {
   notifyStore();
 
   if (supabase && upsertRows.length > 0) {
-    Promise.resolve(supabase.from('baseline_products').upsert(upsertRows)).catch(console.error);
+    Promise.resolve(supabase.from('baseline_products').upsert(upsertRows)).then(null, console.error);
   }
 }
 
@@ -752,7 +752,7 @@ export function deleteProductFromBaseline(itemId, vendor) {
   notifyStore();
 
   if (supabase) {
-    supabase.from('baseline_products').delete().or(`id.eq.${itemId},item_code.eq.${itemId}`).catch(console.error);
+    supabase.from('baseline_products').delete().or(`id.eq.${itemId},item_code.eq.${itemId}`).then(null, console.error);
   }
 }
 
@@ -770,7 +770,7 @@ export function clearVendorBaselineProducts(vendorName) {
   notifyStore();
 
   if (supabase) {
-    supabase.from('baseline_products').delete().ilike('vendor', `%${vendorName}%`).catch(console.error);
+    supabase.from('baseline_products').delete().ilike('vendor', `%${vendorName}%`).then(null, console.error);
   }
 }
 
@@ -791,7 +791,7 @@ export function addAuditLog(entry) {
       modifications: logItem.modifications,
       cost_impact: logItem.costImpact,
       reason: logItem.reason
-    })).catch(console.error);
+    })).then(null, console.error);
   }
 }
 
@@ -821,7 +821,7 @@ export function addDayWisePurchase(rec) {
       qty: Number(rec.qty || 0),
       rate: Number(rec.rate || 0),
       type: rec.type || 'RM'
-    }).catch(console.error);
+    }).then(null, console.error);
   }
   return { success: true };
 }
@@ -841,7 +841,7 @@ export function addDayWiseSales(rec) {
       qty: Number(rec.qty || 0),
       rate: Number(rec.rate || rec.sellingPrice || 0),
       amount: Number(rec.amount || (Number(rec.qty || 0) * Number(rec.rate || rec.sellingPrice || 0)))
-    }).catch(console.error);
+    }).then(null, console.error);
   }
   return { success: true };
 }
