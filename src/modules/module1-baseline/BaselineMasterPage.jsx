@@ -354,7 +354,7 @@ export default function BaselineMasterPage() {
                   cavity: cavity,
                   tonnage: tonnage,
                   shiftTariff: tariff,
-                  postOpCost: Number(row.postOpCost || 0),
+                  postOpCost: 0,
                   packingCost: packingCost,
                   transportCost: transportCost,
                   otherCost: 0.00
