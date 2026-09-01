@@ -181,10 +181,10 @@ export default function BaselineMasterPage() {
             if (label.includes('name of component') || label.includes('part name') || (label.includes('description') && !label.includes('grade') && !label.includes('raw') && !label.includes('material'))) {
               if (!compName && isNaN(Number(valStr))) compName = valStr;
             }
-            if (label.includes('item no') || label.includes('part code') || label.includes('item code') || (labelA === '3' && !label.includes('master batch')) || labelA === '2') {
-              if (!itemCode && valStr !== '-') itemCode = valStr;
+            if ((label.includes('item no') || label.includes('item code') || label.includes('part code') || labelA === '3') && !label.includes('master batch') && !label.includes('mould') && !label.includes('mold')) {
+              if (valStr !== '-' && valStr !== 'nan') itemCode = valStr;
             }
-            if (label.includes('mould size') || label.includes('mold size')) mouldSize = valStr;
+            if (label.includes('mould size') || label.includes('mold size') || labelA === '2') mouldSize = valStr;
             if (label.includes('model') && !label.includes('cost')) model = valStr;
 
             // 2. Raw Material & Masterbatch
@@ -1092,6 +1092,14 @@ export default function BaselineMasterPage() {
                       <td className="py-1.5 px-3 text-center">Rs</td>
                       <td className="py-1.5 px-4 text-right font-mono">₹{Number(haierStagedCalc?.masterbatchCost || 0).toFixed(4)}</td>
                     </tr>
+                      <tr className="bg-amber-50/60 font-medium">
+                        <td className="py-1.5 px-3 font-mono text-slate-500">14</td>
+                        <td className="py-1.5 px-3 text-amber-950">Runner recovery % (50%)</td>
+                        <td className="py-1.5 px-3 text-center text-slate-500">Rs</td>
+                        <td className="py-1.5 px-4 text-right font-mono text-rose-600 font-bold">
+                          -₹{Number(haierStagedCalc?.runnerRecoveryCost || ((((activeStaged.runnerWeight || 0) / (activeStaged.cavity || 1)) / 1000) * 154 * 0.50)).toFixed(4)}
+                        </td>
+                      </tr>
                     <tr className="bg-slate-50 font-bold">
                       <td className="py-1.5 px-3 font-mono text-slate-500">15</td>
                       <td className="py-1.5 px-3 text-slate-900">Total Raw Material Cost</td>
