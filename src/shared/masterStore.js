@@ -2,7 +2,7 @@
 // GLOBAL MASTER DATA STORE (Multi-Select Alternate Lots, Qty & Combined WA)
 // ============================================================================
 
-const STORAGE_KEY = 'CPC_MASTER_STORE_DEV_V2_MULTI_ALT_WA_V2';
+const STORAGE_KEY = "CPC_MASTER_STORE_DEV_V2_PROD_CLEAN_1788243764";
 
 export function normalizeVendorId(vendor) {
   if (!vendor) return 'haier';
@@ -122,7 +122,7 @@ export function computeGradeWeightedAverage(gradeOrCode, vendor) {
 function loadPersistedStore() {
   if (typeof window === 'undefined') return null;
   try {
-    const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_MULTI_ALT_WA_V1') || localStorage.getItem('CPC_MASTER_STORE_DEV_V2_PROD_RELEASE_V5');
+    const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed.rmMappingsData) {

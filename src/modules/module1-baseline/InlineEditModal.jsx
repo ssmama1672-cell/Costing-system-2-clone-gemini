@@ -427,6 +427,14 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   </td>
                   <td className="py-1.5 px-3 text-right font-mono">{(formData.masterbatchPct - formData.runningMbPct).toFixed(1)}%</td>
                 </tr>
+                <tr className="bg-amber-50/50">
+                  <td className="py-1.5 px-3 font-mono text-slate-500">14</td>
+                  <td className="py-1.5 px-3 font-semibold text-amber-950">Runner recovery % (50%)</td>
+                  <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-bold text-amber-900">-₹{Number(haierBaseCalc.runnerRecoveryPct || 0).toFixed(4)}</td>
+                  <td className="py-1.5 px-4 text-right font-mono font-bold text-blue-800">-₹{Number(haierRunningCalc.runnerRecoveryPct || 0).toFixed(4)}</td>
+                  <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-700">₹{((haierBaseCalc.runnerRecoveryPct || 0) - (haierRunningCalc.runnerRecoveryPct || 0)).toFixed(4)}</td>
+                </tr>
                 <tr className="bg-slate-50 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">14</td>
                   <td className="py-1.5 px-3 text-slate-900">Blended RM Rate</td>
@@ -869,7 +877,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                           type="number" 
                           step="0.1" 
                           value={formData.meltLossPct} 
-                          onChange={e => setFormData({ ...formData, meltLossPct: Number(e.target.value) || 0 })} 
+                          onChange={e => { const val = Number(e.target.value) || 0; setFormData({ ...formData, meltLossPct: val, runningMeltLossPct: val }); }} 
                           className="w-14 px-1.5 py-0.5 border border-amber-400 rounded text-center font-bold bg-white text-slate-900 text-xs" 
                         />
                       )}
@@ -973,7 +981,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                           type="number" 
                           step="0.1" 
                           value={formData.efficiencyPct} 
-                          onChange={e => setFormData({ ...formData, efficiencyPct: Number(e.target.value) || 0 })} 
+                          onChange={e => { const val = Number(e.target.value) || 0; setFormData({ ...formData, efficiencyPct: val, runningEfficiencyPct: val }); }} 
                           className="w-14 px-1.5 py-0.5 border border-amber-400 rounded text-center font-bold bg-white text-slate-900 text-xs" 
                         />
                       )}

@@ -142,13 +142,19 @@ export function calculateHaierCost(params = {}) {
 
   const rawMaterialCost = Number(((reconciliationWeight / 1000) * (1 - mbPct) * rmRate).toFixed(4));
   const masterbatchCost = Number(((reconciliationWeight / 1000) * mbPct * mbRate).toFixed(4));
-  const runnerRecoveryScrap = Number(params.runnerRecoveryScrap || 0);
-  const totalRmCost = Number((rawMaterialCost + masterbatchCost - runnerRecoveryScrap).toFixed(4));
+  
+  // RUNNER RECOVERY CALCULATION:
+  // Option 2 (Standard per-piece): (Runner Weight / Cavity) * (RM Rate / 1000) * 50%
+  // Option 1 (Total runner): Runner Weight * (RM Rate / 1000) * 50%
+  const isOption1 = params.runnerRecoveryOption === 1;
+  const runnerWeightPerPiece = isOption1 ? runnerWeight : (runnerWeight / cavity);
+  const runnerRecoveryPct = Number((runnerWeightPerPiece * (rmRate / 1000) * 0.50).toFixed(4));
+  
+  // Row 15: Total Raw Material Cost = Raw Material Cost + Masterbatch Cost - Runner Recovery
+  const totalRmCost = Number((rawMaterialCost + masterbatchCost - runnerRecoveryPct).toFixed(4));
 
   const cycleTime = Number(params.cycleTime) || 70;
   const shiftTariff = Number(params.shiftTariff) || 4800;
-  
-  // Custom or Default Machine Efficiency % (Default: 95%)
   const efficiencyPct = Number(params.efficiencyPct !== undefined ? params.efficiencyPct : 95.0);
   
   const shotsShift8h = cycleTime > 0 ? Number((28800 / cycleTime).toFixed(2)) : 0;
@@ -198,7 +204,8 @@ export function calculateHaierCost(params = {}) {
     reconciliationWeight,
     rawMaterialCost,
     masterbatchCost,
-    runnerRecoveryScrap,
+    runnerRecoveryPct,
+    runnerRecoveryScrap: runnerRecoveryPct,
     totalRmCost,
     shotsShift8h,
     efficiencyPct,
