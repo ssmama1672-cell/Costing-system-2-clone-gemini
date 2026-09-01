@@ -1,8 +1,9 @@
 // ============================================================================
-// GLOBAL MASTER DATA STORE (Multi-Select Alternate Lots, Qty & Combined WA)
+// GLOBAL MASTER DATA STORE (Supabase Cloud Sync + Multi-Lot WA Engine)
 // ============================================================================
+import { supabase } from './supabaseClient';
 
-const STORAGE_KEY = "CPC_MASTER_STORE_DEV_V2_PROD_CLEAN_1788243764";
+const STORAGE_KEY = 'CPC_MASTER_STORE_DEV_V2_SUPABASE_SYNC_V1';
 
 export function normalizeVendorId(vendor) {
   if (!vendor) return 'haier';
@@ -146,8 +147,8 @@ function loadPersistedStore() {
 }
 
 const defaultStore = {
-  isLocked: true,
-  isMatrixLocked: true,
+  isLocked: false,
+  isMatrixLocked: false,
   vendors: [
     { vendorId: 'Haier Appliances', vendorName: 'Haier Appliances' },
     { vendorId: 'Atomberg Technologies', vendorName: 'Atomberg Technologies' },
@@ -170,8 +171,8 @@ const initialStore = loadPersistedStore() || defaultStore;
 export let globalStore = {
   ...defaultStore,
   ...initialStore,
-  isLocked: initialStore.isLocked !== undefined ? initialStore.isLocked : true,
-  isMatrixLocked: initialStore.isMatrixLocked !== undefined ? initialStore.isMatrixLocked : true,
+  isLocked: initialStore.isLocked !== undefined ? initialStore.isLocked : false,
+  isMatrixLocked: initialStore.isMatrixLocked !== undefined ? initialStore.isMatrixLocked : false,
   vendors: (initialStore.vendors && initialStore.vendors.length > 0) ? initialStore.vendors : defaultStore.vendors,
   vendorSchedules: initialStore.vendorSchedules || defaultStore.vendorSchedules,
   baselineProducts: initialStore.baselineProducts || [],
@@ -201,12 +202,158 @@ export function notifyStore() {
   listeners.forEach(fn => { try { fn(globalStore); } catch (e) { console.error(e); } });
 }
 
+// ============================================================================
+// SUPABASE ASYNCHRONOUS DATA INITIALIZATION & SYNC
+// ============================================================================
+export async function initSupabaseData() {
+  if (!supabase) return;
+  try {
+    const [
+      { data: rmData },
+      { data: prodsData },
+      { data: purData },
+      { data: salesData },
+      { data: logsData }
+    ] = await Promise.all([
+      supabase.from('rm_mappings').select('*'),
+      supabase.from('baseline_products').select('*'),
+      supabase.from('purchases').select('*').order('date', { ascending: false }),
+      supabase.from('sales').select('*').order('date', { ascending: false }),
+      supabase.from('audit_logs').select('*').order('created_at', { ascending: false })
+    ]);
+
+    if (rmData) {
+      globalStore.rmMappingsData = rmData.map(r => ({
+        id: r.id,
+        vendor: r.vendor,
+        type: r.type,
+        approvedCode: r.approved_code,
+        approvedPrice: Number(r.approved_price || 0),
+        selectedAlts: r.selected_alts || [r.approved_code],
+        alt1Code: r.alt1_code,
+        alt1Price: Number(r.alt1_price || 0),
+        periodFrom: r.period_from,
+        periodTo: r.period_to
+      }));
+    }
+
+    if (prodsData) {
+      globalStore.baselineProducts = prodsData.map(p => ({
+        id: p.id,
+        vendor: p.vendor,
+        itemCode: p.item_code,
+        componentName: p.component_name,
+        model: p.model,
+        mouldSize: p.mould_size,
+        approvedRm: p.approved_rm,
+        baseRm: p.base_rm,
+        approvedMb: p.approved_mb,
+        masterbatchPct: Number(p.masterbatch_pct || 4),
+        cavity: Number(p.cavity || 1),
+        netWeight: Number(p.net_weight || 0),
+        runnerWeight: Number(p.runner_weight || 0),
+        shotWeight: Number(p.shot_weight || 0),
+        reconciliationWeight: Number(p.reconciliation_weight || 0),
+        machineTonnage: Number(p.machine_tonnage || 200),
+        shiftTariff: Number(p.shift_tariff || 2000),
+        cycleTimeApproved: Number(p.cycle_time_approved || 47),
+        meltLossPct: Number(p.melt_loss_pct || 1),
+        efficiencyPct: Number(p.efficiency_pct || 95),
+        approvedCost: Number(p.approved_cost || 0),
+        approvedRmPrice: Number(p.approved_rm_price || 0),
+        approvedMbPrice: Number(p.approved_mb_price || 0),
+        haierOverheadPackage: Number(p.haier_overhead_package || 0),
+        foamPolybag: Number(p.foam_polybag || 0),
+        plasticBin: Number(p.plastic_bin || 0),
+        freightCost: Number(p.freight_cost || 0),
+        secondaryOp1: Number(p.secondary_op1 || 0),
+        secondaryOp2: Number(p.secondary_op2 || 0),
+        screenPrint1: Number(p.screen_print1 || 0),
+        screenPrint2: Number(p.screen_print2 || 0),
+        assemblyCost: Number(p.assembly_cost || 0),
+        bopCost: Number(p.bop_cost || 0),
+        mouldMaintenance: Number(p.mould_maintenance || 0),
+        qualityInspection: Number(p.quality_inspection || 0),
+        iccReduce: Number(p.icc_reduce || 0),
+        scrapAdj: Number(p.scrap_adj || 0),
+        packingCost: Number(p.packing_cost || 0),
+        transportCost: Number(p.transport_cost || 0),
+        otherCost: Number(p.other_cost || 0),
+        parameters: p.parameters || {}
+      }));
+    }
+
+    if (purData) {
+      globalStore.purchases = purData.map(pur => ({
+        id: pur.id,
+        date: pur.date,
+        vendor: pur.vendor,
+        supplier: pur.supplier,
+        invoiceNo: pur.invoice_no,
+        itemCode: pur.item_code,
+        grade: pur.grade,
+        qty: Number(pur.qty || 0),
+        rate: Number(pur.rate || 0),
+        type: pur.type || 'RM'
+      }));
+    }
+
+    if (salesData) {
+      globalStore.sales = salesData.map(s => ({
+        id: s.id,
+        date: s.date,
+        vendor: s.vendor,
+        itemCode: s.item_code,
+        invoiceNo: s.invoice_no,
+        componentName: s.component_name,
+        qty: Number(s.qty || 0),
+        rate: Number(s.rate || 0),
+        amount: Number(s.amount || 0)
+      }));
+    }
+
+    if (logsData) {
+      globalStore.auditLogs = logsData.map(l => ({
+        id: l.id,
+        timestamp: l.timestamp,
+        partCode: l.part_code,
+        componentName: l.component_name,
+        vendor: l.vendor,
+        modifications: l.modifications,
+        costImpact: l.cost_impact,
+        reason: l.reason
+      }));
+    }
+
+    notifyStore();
+  } catch (err) {
+    console.error("Supabase sync error:", err);
+  }
+}
+
+// Auto-trigger sync on load in browser
+if (typeof window !== 'undefined') {
+  initSupabaseData();
+}
+
 export function purgeAllTestData() {
   globalStore.rmMappingsData = [];
   globalStore.baselineProducts = [];
   globalStore.purchases = [];
   globalStore.sales = [];
   globalStore.auditLogs = [];
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  if (supabase) {
+    Promise.all([
+      supabase.from('rm_mappings').delete().neq('id', '0'),
+      supabase.from('baseline_products').delete().neq('id', '0'),
+      supabase.from('purchases').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      supabase.from('audit_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    ]).catch(console.error);
+  }
   notifyStore();
 }
 
@@ -235,8 +382,8 @@ export function getActiveRmMapping(gradeName, vendor) {
       approvedPrice: Number(found.approvedPrice || 0), 
       activeGrade: selectedAlts.join(' + '), 
       activeWaPrice: Number(waRate || found.approvedPrice || 0), 
-      selectedAlts,
-      totalInwardQty: totalQty,
+      selectedAlts, 
+      totalInwardQty: totalQty, 
       isFound: true 
     };
   }
@@ -270,8 +417,8 @@ export function getActiveMbMapping(mbGradeName, vendor) {
       approvedMbPrice: Number(found.approvedPrice || 0), 
       activeMbGrade: selectedAlts.join(' + '), 
       activeMbWaPrice: Number(waRate || found.approvedPrice || 0), 
-      selectedAlts,
-      totalInwardQty: totalQty,
+      selectedAlts, 
+      totalInwardQty: totalQty, 
       isFound: true 
     };
   }
@@ -292,23 +439,42 @@ export function addOrUpdateVendorMaterial(item) {
     r.approvedCode.toLowerCase().trim() === cleanCode.toLowerCase().trim()
   );
 
+  let targetId = item.id;
   if (idx >= 0) {
+    targetId = globalStore.rmMappingsData[idx].id;
     globalStore.rmMappingsData[idx] = { 
       ...globalStore.rmMappingsData[idx], 
-      ...item,
-      approvedCode: cleanCode,
-      selectedAlts: item.selectedAlts || globalStore.rmMappingsData[idx].selectedAlts || [cleanCode],
+      ...item, 
+      approvedCode: cleanCode, 
+      selectedAlts: item.selectedAlts || globalStore.rmMappingsData[idx].selectedAlts || [cleanCode], 
       vendor: item.vendor || globalStore.rmMappingsData[idx].vendor 
     };
   } else {
+    targetId = item.id || `mat-${vNorm}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`;
     globalStore.rmMappingsData.push({ 
-      id: `mat-${vNorm}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`, 
-      ...item,
-      approvedCode: cleanCode,
-      selectedAlts: item.selectedAlts || [cleanCode]
+      id: targetId, 
+      ...item, 
+      approvedCode: cleanCode, 
+      selectedAlts: item.selectedAlts || [cleanCode] 
     });
   }
   notifyStore();
+
+  if (supabase) {
+    supabase.from('rm_mappings').upsert({
+      id: targetId,
+      vendor: item.vendor || 'Haier Appliances',
+      type: item.type,
+      approved_code: cleanCode,
+      approved_price: Number(item.approvedPrice || 0),
+      selected_alts: item.selectedAlts || [cleanCode],
+      alt1_code: item.alt1Code || cleanCode,
+      alt1_price: Number(item.alt1Price || item.approvedPrice || 0),
+      period_from: item.periodFrom || '2026-08-01',
+      period_to: item.periodTo || '2026-08-31',
+      updated_at: new Date().toISOString()
+    }).catch(console.error);
+  }
 }
 
 export function updateRmMappingRow(rowId, updatedFields) {
@@ -317,6 +483,16 @@ export function updateRmMappingRow(rowId, updatedFields) {
   if (idx >= 0) {
     globalStore.rmMappingsData[idx] = { ...globalStore.rmMappingsData[idx], ...updatedFields };
     notifyStore();
+
+    if (supabase) {
+      const r = globalStore.rmMappingsData[idx];
+      supabase.from('rm_mappings').update({
+        approved_price: Number(r.approvedPrice || 0),
+        selected_alts: r.selectedAlts || [],
+        alt1_price: Number(r.alt1Price || 0),
+        updated_at: new Date().toISOString()
+      }).eq('id', rowId).catch(console.error);
+    }
   }
 }
 
@@ -335,6 +511,10 @@ export function deleteVendorMaterial(id, vendor) {
   });
 
   notifyStore();
+
+  if (supabase) {
+    supabase.from('rm_mappings').delete().eq('id', id).catch(console.error);
+  }
 }
 
 export function getProductsUsingMaterial(matCode, vendor) {
@@ -407,6 +587,16 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
   });
 
   notifyStore();
+
+  if (supabase) {
+    supabase.from('vendor_schedules').upsert({
+      vendor_id: vendor,
+      period_from: periodFrom,
+      period_to: periodTo,
+      saved_at: new Date().toISOString()
+    }, { onConflict: 'vendor_id,period_from,period_to' }).catch(console.error);
+  }
+
   return { success: true, count: vendorMaterials.length };
 }
 
@@ -430,19 +620,122 @@ export function updateBaselineParameters({ itemId, updatedItem, reason }) {
     reason: reason || 'Manual Spec Adjustment'
   });
   notifyStore();
+
+  if (supabase) {
+    supabase.from('baseline_products').upsert({
+      id: prod.id || prod.itemCode,
+      vendor: prod.vendor,
+      item_code: prod.itemCode,
+      component_name: prod.componentName,
+      model: prod.model,
+      mould_size: prod.mouldSize,
+      approved_rm: prod.approvedRm,
+      base_rm: prod.baseRm,
+      approved_mb: prod.approvedMb,
+      masterbatch_pct: Number(prod.masterbatchPct || 4),
+      cavity: Number(prod.cavity || 1),
+      net_weight: Number(prod.netWeight || 0),
+      runner_weight: Number(prod.runnerWeight || 0),
+      shot_weight: Number(prod.shotWeight || 0),
+      reconciliation_weight: Number(prod.reconciliationWeight || 0),
+      machine_tonnage: Number(prod.machineTonnage || 200),
+      shift_tariff: Number(prod.shiftTariff || 2000),
+      cycle_time_approved: Number(prod.cycleTimeApproved || 47),
+      melt_loss_pct: Number(prod.meltLossPct || 1),
+      efficiency_pct: Number(prod.efficiencyPct || 95),
+      approved_cost: Number(prod.approvedCost || 0),
+      approved_rm_price: Number(prod.approvedRmPrice || 0),
+      approved_mb_price: Number(prod.approvedMbPrice || 0),
+      haier_overhead_package: Number(prod.haierOverheadPackage || 0),
+      foam_polybag: Number(prod.foamPolybag || 0),
+      plastic_bin: Number(prod.plasticBin || 0),
+      freight_cost: Number(prod.freightCost || 0),
+      secondary_op1: Number(prod.secondaryOp1 || 0),
+      secondary_op2: Number(prod.secondaryOp2 || 0),
+      screen_print1: Number(prod.screenPrint1 || 0),
+      screen_print2: Number(prod.screenPrint2 || 0),
+      assembly_cost: Number(prod.assemblyCost || 0),
+      bop_cost: Number(prod.bopCost || 0),
+      mould_maintenance: Number(prod.mouldMaintenance || 0),
+      quality_inspection: Number(prod.qualityInspection || 0),
+      icc_reduce: Number(prod.iccReduce || 0),
+      scrap_adj: Number(prod.scrapAdj || 0),
+      packing_cost: Number(prod.packingCost || 0),
+      transport_cost: Number(prod.transportCost || 0),
+      other_cost: Number(prod.otherCost || 0),
+      parameters: prod.parameters || {},
+      updated_at: new Date().toISOString()
+    }).catch(console.error);
+  }
 }
 
 export function addStagedProductsToBaseline(stagedList, vendor) {
+  const upsertRows = [];
+
   stagedList.forEach(staged => {
     const cleanRm = sanitizeMaterialName(staged.approvedRm || staged.baseRm, staged.componentName, staged.itemCode, vendor);
     const idx = globalStore.baselineProducts.findIndex(p => p.itemCode === staged.itemCode && normalizeVendorId(p.vendor) === normalizeVendorId(vendor));
+    let targetId = staged.id;
+
     if (idx >= 0) {
+      targetId = globalStore.baselineProducts[idx].id;
       globalStore.baselineProducts[idx] = { ...globalStore.baselineProducts[idx], ...staged, approvedRm: cleanRm, vendor: vendor || staged.vendor };
     } else {
-      globalStore.baselineProducts.push({ ...staged, approvedRm: cleanRm, id: `prod-${Date.now()}-${Math.random().toString(36).substr(2,4)}`, vendor: vendor || staged.vendor });
+      targetId = staged.id || `prod-${Date.now()}-${Math.random().toString(36).substr(2,4)}`;
+      globalStore.baselineProducts.push({ ...staged, approvedRm: cleanRm, id: targetId, vendor: vendor || staged.vendor });
     }
+
+    upsertRows.push({
+      id: targetId,
+      vendor: vendor || staged.vendor,
+      item_code: staged.itemCode,
+      component_name: staged.componentName,
+      model: staged.model,
+      mould_size: staged.mouldSize,
+      approved_rm: cleanRm,
+      base_rm: staged.baseRm || cleanRm,
+      approved_mb: staged.approvedMb || 'None',
+      masterbatch_pct: Number(staged.masterbatchPct || 4),
+      cavity: Number(staged.cavity || 1),
+      net_weight: Number(staged.netWeight || 0),
+      runner_weight: Number(staged.runnerWeight || 0),
+      shot_weight: Number(staged.shotWeight || 0),
+      reconciliation_weight: Number(staged.reconciliationWeight || 0),
+      machine_tonnage: Number(staged.machineTonnage || 200),
+      shift_tariff: Number(staged.shiftTariff || 2000),
+      cycle_time_approved: Number(staged.cycleTimeApproved || 47),
+      melt_loss_pct: Number(staged.meltLossPct || 1),
+      efficiency_pct: Number(staged.efficiencyPct || 95),
+      approved_cost: Number(staged.approvedCost || 0),
+      approved_rm_price: Number(staged.approvedRmPrice || 0),
+      approved_mb_price: Number(staged.approvedMbPrice || 0),
+      haier_overhead_package: Number(staged.haierOverheadPackage || 0),
+      foam_polybag: Number(staged.foamPolybag || 0),
+      plastic_bin: Number(staged.plasticBin || 0),
+      freight_cost: Number(staged.freightCost || 0),
+      secondary_op1: Number(staged.secondaryOp1 || 0),
+      secondary_op2: Number(staged.secondaryOp2 || 0),
+      screen_print1: Number(staged.screenPrint1 || 0),
+      screen_print2: Number(staged.screenPrint2 || 0),
+      assembly_cost: Number(staged.assemblyCost || 0),
+      bop_cost: Number(staged.bopCost || 0),
+      mould_maintenance: Number(staged.mouldMaintenance || 0),
+      quality_inspection: Number(staged.qualityInspection || 0),
+      icc_reduce: Number(staged.iccReduce || 0),
+      scrap_adj: Number(staged.scrapAdj || 0),
+      packing_cost: Number(staged.packingCost || 0),
+      transport_cost: Number(staged.transportCost || 0),
+      other_cost: Number(staged.otherCost || 0),
+      parameters: staged.parameters || {},
+      updated_at: new Date().toISOString()
+    });
   });
+
   notifyStore();
+
+  if (supabase && upsertRows.length > 0) {
+    supabase.from('baseline_products').upsert(upsertRows).catch(console.error);
+  }
 }
 
 export function deleteProductFromBaseline(itemId, vendor) {
@@ -457,6 +750,10 @@ export function deleteProductFromBaseline(itemId, vendor) {
     reason: 'Manual deletion'
   });
   notifyStore();
+
+  if (supabase) {
+    supabase.from('baseline_products').delete().or(`id.eq.${itemId},item_code.eq.${itemId}`).catch(console.error);
+  }
 }
 
 export function clearVendorBaselineProducts(vendorName) {
@@ -471,14 +768,31 @@ export function clearVendorBaselineProducts(vendorName) {
     reason: 'Manual Baseline Purge'
   });
   notifyStore();
+
+  if (supabase) {
+    supabase.from('baseline_products').delete().ilike('vendor', `%${vendorName}%`).catch(console.error);
+  }
 }
 
 export function addAuditLog(entry) {
-  globalStore.auditLogs = globalStore.auditLogs || [];
-  globalStore.auditLogs.unshift({
+  const logItem = {
     timestamp: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
     ...entry
-  });
+  };
+  globalStore.auditLogs = globalStore.auditLogs || [];
+  globalStore.auditLogs.unshift(logItem);
+
+  if (supabase) {
+    supabase.from('audit_logs').insert({
+      timestamp: logItem.timestamp,
+      part_code: logItem.partCode,
+      component_name: logItem.componentName,
+      vendor: logItem.vendor,
+      modifications: logItem.modifications,
+      cost_impact: logItem.costImpact,
+      reason: logItem.reason
+    }).catch(console.error);
+  }
 }
 
 export function toggleGlobalLock() { 
@@ -491,6 +805,45 @@ export function toggleMatrixLock() {
   notifyStore(); 
 }
 
-export function addDayWisePurchase(rec) { (globalStore.purchases = globalStore.purchases || []).unshift(rec); notifyStore(); return { success: true }; }
-export function addDayWiseSales(rec) { (globalStore.sales = globalStore.sales || []).unshift(rec); notifyStore(); return { success: true }; }
+export function addDayWisePurchase(rec) {
+  globalStore.purchases = globalStore.purchases || [];
+  globalStore.purchases.unshift(rec);
+  notifyStore();
+
+  if (supabase) {
+    supabase.from('purchases').insert({
+      date: rec.date || '2026-08-15',
+      vendor: rec.vendor || 'Haier Appliances',
+      supplier: rec.supplier || rec.supplierName || '',
+      invoice_no: rec.invoiceNo || '',
+      item_code: rec.itemCode || '',
+      grade: rec.grade || '',
+      qty: Number(rec.qty || 0),
+      rate: Number(rec.rate || 0),
+      type: rec.type || 'RM'
+    }).catch(console.error);
+  }
+  return { success: true };
+}
+
+export function addDayWiseSales(rec) {
+  globalStore.sales = globalStore.sales || [];
+  globalStore.sales.unshift(rec);
+  notifyStore();
+
+  if (supabase) {
+    supabase.from('sales').insert({
+      date: rec.date || '2026-08-15',
+      vendor: rec.vendor || 'Haier Appliances',
+      item_code: rec.itemCode || '',
+      invoice_no: rec.invoiceNo || '',
+      component_name: rec.componentName || '',
+      qty: Number(rec.qty || 0),
+      rate: Number(rec.rate || rec.sellingPrice || 0),
+      amount: Number(rec.amount || (Number(rec.qty || 0) * Number(rec.rate || rec.sellingPrice || 0)))
+    }).catch(console.error);
+  }
+  return { success: true };
+}
+
 export function onboardVendorWithBlueprint() { notifyStore(); }
