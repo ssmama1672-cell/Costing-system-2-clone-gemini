@@ -124,11 +124,10 @@ export default function BaselineMasterPage() {
           return;
         }
 
-        const isHaierVendor = selectedVendor.toLowerCase().includes('haier');
         const parsed = [];
-        const maxCols = Math.max(...rawMatrix.map(r => (r && Array.isArray(r) ? r.length : 0)));
+        const isHaierVendor = selectedVendor.toLowerCase().includes('haier');
+        const maxCols = rawMatrix.reduce((max, r) => Math.max(max, (r && Array.isArray(r)) ? r.length : 0), 0);
 
-        // Scan columns starting from index 2 to maxCols (e.g. Column K, D, etc.)
         for (let c = 2; c < maxCols; c++) {
           let itemCode = '';
           let compName = '';
@@ -136,8 +135,10 @@ export default function BaselineMasterPage() {
           let model = isHaierVendor ? 'TM 258/278' : 'Aris Ceiling Fan';
           let rmGradeStr = '';
           let mbCodeStr = '';
+          let rmBaseRate = isHaierVendor ? 154 : 131;
+          let mbBaseRate = isHaierVendor ? 242 : 154;
           let mbPct = 4.0;
-          let cavity = 1;
+          let cavity = isHaierVendor ? 1 : 2;
           let runnerWt = 0;
           let partWt = 0;
           let shotWt = 0;
@@ -145,9 +146,6 @@ export default function BaselineMasterPage() {
           let tonnage = isHaierVendor ? 600 : 200;
           let tariff = isHaierVendor ? 4800 : 2000;
           let cycleTime = isHaierVendor ? 70 : 47;
-          let meltLossPct = 1.0;
-          let efficiencyPct = 95.0;
-
           let haierOverheadPackage = 0;
           let foamPolybag = 0;
           let plasticBin = 0;
@@ -171,7 +169,7 @@ export default function BaselineMasterPage() {
             const labelA = String(r[0] || '').toLowerCase().trim();
             const labelB = String(r[1] || '').toLowerCase().trim();
             const labelC = String(r[2] || '').toLowerCase().trim();
-            const label = labelA + ' ' + labelB + ' ' + labelC;
+            const label = `${labelA} ${labelB} ${labelC}`;
 
             const rawVal = r[c];
             if (rawVal === undefined || rawVal === null || String(rawVal).trim() === '') return;
@@ -180,26 +178,26 @@ export default function BaselineMasterPage() {
             const valNum = parseFloat(cleanNumStr);
 
             // 1. Part Name & Code
-            if (label.includes('name of component') || label.includes('part name') || (label.includes('description') && !label.includes('raw') && !label.includes('material'))) {
+            if (label.includes('name of component') || label.includes('part name') || (label.includes('description') && !label.includes('grade') && !label.includes('raw') && !label.includes('material'))) {
               if (!compName && isNaN(Number(valStr))) compName = valStr;
             }
-            if (label.includes('item no') || label.includes('part code') || label.includes('item code') || (labelA === '3' && !label.includes('master batch'))) {
-              if (!itemCode) itemCode = valStr;
+            if (label.includes('item no') || label.includes('part code') || label.includes('item code') || (labelA === '3' && !label.includes('master batch')) || labelA === '2') {
+              if (!itemCode && valStr !== '-') itemCode = valStr;
             }
             if (label.includes('mould size') || label.includes('mold size')) mouldSize = valStr;
             if (label.includes('model') && !label.includes('cost')) model = valStr;
 
             // 2. Raw Material & Masterbatch
-            if ((label.includes('raw material required') || label.includes('rm grade') || label.includes('material')) && !label.includes('cost') && !label.includes('total') && !label.includes('rate')) {
+            if ((label.includes('raw material required') || label.includes('rm grade') || (labelA === '5' && label.includes('raw material'))) && !label.includes('cost') && !label.includes('rate') && !label.includes('total')) {
               if (!rmGradeStr && isNaN(Number(valStr))) rmGradeStr = valStr;
             }
-            if (label.includes('mb code') && valStr && valStr !== '-' && isNaN(Number(valStr))) mbCodeStr = valStr;
+            if (label.includes('mb code') && valStr && valStr !== '-' && valStr !== 'nan' && isNaN(Number(valStr))) mbCodeStr = valStr;
             if (label.includes('master batch required') || label.includes('mb %') || label.includes('masterbatch %')) {
               if (!isNaN(valNum)) mbPct = valNum <= 1 && valNum > 0 ? Number((valNum * 100).toFixed(2)) : valNum;
             }
 
             // 3. Technical Parameters
-            if (label.includes('cavity') || label.includes('no. of cavity') || label.includes('no of cavity')) {
+            if (label.includes('no. of cavity') || label.includes('no of cavity') || label.includes('cavity')) {
               const num = parseInt(cleanNumStr, 10);
               if (!isNaN(num) && num > 0) cavity = num;
             }
@@ -215,57 +213,69 @@ export default function BaselineMasterPage() {
             if (label.includes('reconciliation weight') || label.includes('melt loss on shot')) {
               if (!isNaN(valNum) && valNum > 0) reconWt = valNum;
             }
-            if (label.includes('melt loss') || label.includes('% melt loss')) {
-              if (!isNaN(valNum)) meltLossPct = valNum <= 1 && valNum > 0 ? valNum * 100 : valNum;
-            }
 
-            // 4. Machine & Production
+            // 4. Machine & Tariff
             if (label.includes('machine used') || label.includes('tonnage')) {
               const num = parseInt(cleanNumStr, 10);
-              if (!isNaN(num)) tonnage = num;
+              if (!isNaN(num) && num > 0) tonnage = num;
             }
-            if (label.includes('machine tariff') || label.includes('tariff') || label.includes('machine trariff')) {
-              if (!isNaN(valNum)) tariff = valNum;
+            if (label.includes('machine tariff') || label.includes('shift tariff') || label.includes('machine trariff')) {
+              if (!isNaN(valNum) && valNum > 0) tariff = valNum;
             }
-            if (label.includes('cycle time')) {
+            if (label.includes('cycle time') && !label.includes('rejection') && !label.includes('reconciliation')) {
               if (!isNaN(valNum) && valNum > 0) cycleTime = valNum;
             }
-            if (label.includes('efficiency') || label.includes('% efficiency')) {
-              if (!isNaN(valNum)) efficiencyPct = valNum <= 1 && valNum > 0 ? valNum * 100 : valNum;
-            }
 
-            // 5. Overheads & Secondary
-            if (label.includes('overhead') || label.includes('oh+profit')) {
+            // 5. Overheads & Secondary Operations
+            if (label.includes('oh + profit') || label.includes('overhead')) {
               if (!isNaN(valNum)) haierOverheadPackage = valNum;
             }
             if (label.includes('foam') || label.includes('polybag')) {
               if (!isNaN(valNum)) foamPolybag = valNum;
             }
-            if (label.includes('plastic bin') || label.includes('polyenda')) {
+            if (label.includes('plastic bin')) {
               if (!isNaN(valNum)) plasticBin = valNum;
             }
             if (label.includes('freight')) {
               if (!isNaN(valNum)) freightCost = valNum;
             }
-            if (label.includes('printing') || label.includes('screen print')) {
+            if (label.includes('secondary operation 1')) {
+              if (!isNaN(valNum)) secondaryOp1 = valNum;
+            }
+            if (label.includes('secondary operation 2')) {
+              if (!isNaN(valNum)) secondaryOp2 = valNum;
+            }
+            if (label.includes('screen printing - 1st') || label.includes('screen print 1')) {
               if (!isNaN(valNum)) screenPrint1 = valNum;
             }
-            if (label.includes('assembly') || label.includes('assy')) {
+            if (label.includes('screen printing - 2nd') || label.includes('screen print 2')) {
+              if (!isNaN(valNum)) screenPrint2 = valNum;
+            }
+            if (label.includes('assembly cost') || label.includes('assy')) {
               if (!isNaN(valNum)) assemblyCost = valNum;
             }
-            if (label.includes('bop')) {
+            if (label.includes('insert') || label.includes('hinge') || label.includes('bop')) {
               if (!isNaN(valNum)) bopCost = valNum;
             }
-            if (label.includes('maintenance')) {
+            if (label.includes('mould maintenance')) {
               if (!isNaN(valNum)) mouldMaintenance = valNum;
             }
-            if (label.includes('quality') || label.includes('inspection')) {
+            if (label.includes('quality inspection')) {
               if (!isNaN(valNum)) qualityInspection = valNum;
             }
-            if (label.includes('icc')) {
+            if (label.includes('icc reduce')) {
               if (!isNaN(valNum)) iccReduce = valNum;
             }
-            if (label.includes('total landed') || label.includes('final cost') || label.includes('grand total') || (label.includes('cost') && label.includes('total'))) {
+            if (label.includes('scrap recovery adjustment')) {
+              if (!isNaN(valNum)) scrapAdj = valNum;
+            }
+            if (label.includes('packing cost')) {
+              if (!isNaN(valNum)) packingCost = valNum;
+            }
+            if (label.includes('transport cost')) {
+              if (!isNaN(valNum)) transportCost = valNum;
+            }
+            if (label.includes('total landed') || label.includes('final cost') || label.includes('grand total') || (label.includes('total') && label.includes('cost'))) {
               if (!isNaN(valNum) && valNum > 0) excelTotalCost = valNum;
             }
           });
@@ -274,39 +284,106 @@ export default function BaselineMasterPage() {
           const isHeaderCol = cNameLower === 'uom' || cNameLower === 'unit' || cNameLower === 'description' || cNameLower === 'name of component';
 
           if (!isHeaderCol && (partWt > 0 || (compName && compName.length > 2 && isNaN(Number(compName))))) {
-            const finalItemCode = (itemCode && itemCode !== '-' && itemCode !== 'nan') ? itemCode : (`PART-${c}`);
-            const finalCompName = (compName && !isHeaderCol) ? compName : (`Component ${finalItemCode}`);
+            const finalItemCode = (itemCode && itemCode !== '-' && itemCode !== 'nan') ? itemCode : `PART-${c}`;
+            const finalCompName = (compName && !isHeaderCol) ? compName : `Component ${finalItemCode}`;
             const finalRmStr = sanitizeMaterialName(rmGradeStr, finalCompName, finalItemCode, selectedVendor);
             const { baseRm, mbGrade } = parseMaterialString(finalRmStr);
-            const activeMbCode = mbCodeStr || mbGrade || 'None';
-            const activeRm = getActiveRmMapping(baseRm || finalRmStr, selectedVendor);
-            const activeMb = getActiveMbMapping(activeMbCode, selectedVendor);
+            const resolvedMb = mbCodeStr || mbGrade || (isHaierVendor ? 'White MB' : 'Gloss White MB');
+
+            if (baseRm) {
+              addOrUpdateVendorMaterial({
+                vendor: selectedVendor,
+                type: 'RM',
+                approvedCode: baseRm,
+                approvedPrice: rmBaseRate
+              });
+            }
+            if (resolvedMb) {
+              addOrUpdateVendorMaterial({
+                vendor: selectedVendor,
+                type: 'MB',
+                approvedCode: resolvedMb,
+                approvedPrice: mbBaseRate
+              });
+            }
+
+            let calcResult = 0;
+            if (isHaierVendor) {
+              const ctApp = cycleTime > 0 ? cycleTime : 70;
+              const cavApp = cavity > 0 ? cavity : 1;
+              const partsPerShift = (28800 / ctApp) * 0.95 * cavApp;
+
+              const h = calculateHaierCost({
+                cavity: cavApp,
+                netWeight: partWt,
+                runnerWeight: runnerWt,
+                shotWeight: shotWt || (partWt * cavApp + runnerWt),
+                meltLossPct: 1.0,
+                efficiencyPct: 95.0,
+                partsPerShift: partsPerShift,
+                rmRate: rmBaseRate,
+                masterbatchPct: mbPct,
+                masterbatchRate: mbBaseRate,
+                shiftTariff: tariff,
+                cycleTime: ctApp,
+                haierOverheadPackage: haierOverheadPackage,
+                foamPolybag,
+                plasticBin,
+                freightCost,
+                secondaryOp1,
+                secondaryOp2,
+                screenPrint1,
+                screenPrint2,
+                assemblyCost,
+                bopCost,
+                mouldMaintenance,
+                qualityInspection,
+                iccReduce,
+                scrapAdj
+              });
+              calcResult = excelTotalCost > 0 ? excelTotalCost : h.totalCost;
+            } else {
+              const a = calculateAtombergCost({
+                rmBase: rmBaseRate,
+                mbBase: mbBaseRate,
+                partWt: partWt,
+                runnerWt: runnerWt,
+                mbPct: mbPct / 100,
+                bopCost: bopCost,
+                cycleTime: cycleTime,
+                cavity: cavity,
+                tonnage: tonnage,
+                shiftTariff: tariff,
+                postOpCost: 1.73,
+                packingCost: packingCost,
+                transportCost: transportCost,
+                otherCost: 0.00
+              });
+              calcResult = excelTotalCost > 0 ? excelTotalCost : a.finalLanded;
+            }
 
             parsed.push({
-              id: `prod-${selectedVendor.toLowerCase().replace(/\s+/g, '-')}-${finalItemCode}-${Date.now()}-${c}`,
+              id: `prod-${finalItemCode}-${c}`,
               vendor: selectedVendor,
-              itemCode: finalItemCode,
               componentName: finalCompName,
-              model: model,
               mouldSize: mouldSize,
+              itemCode: finalItemCode,
+              model: model,
               approvedRm: finalRmStr,
               baseRm: baseRm || finalRmStr,
-              approvedMb: activeMbCode,
+              approvedMb: resolvedMb,
               masterbatchPct: mbPct,
               cavity: cavity,
-              netWeight: partWt,
               runnerWeight: runnerWt,
+              netWeight: partWt,
               shotWeight: shotWt || (partWt * cavity + runnerWt),
               reconciliationWeight: reconWt,
               machineTonnage: tonnage,
               shiftTariff: tariff,
               cycleTimeApproved: cycleTime,
-              meltLossPct: meltLossPct,
-              efficiencyPct: efficiencyPct,
-              approvedCost: excelTotalCost,
-              approvedRmPrice: activeRm.approvedPrice || 154,
-              approvedMbPrice: activeMb.approvedMbPrice || 242,
-              haierOverheadPackage,
+              meltLossPct: 1.0,
+              efficiencyPct: 95.0,
+              haierOverheadPackage: haierOverheadPackage,
               foamPolybag,
               plasticBin,
               freightCost,
@@ -322,7 +399,33 @@ export default function BaselineMasterPage() {
               scrapAdj,
               packingCost,
               transportCost,
-              otherCost: 0
+              approvedCost: calcResult,
+              parameters: {
+                runningCycleTime: cycleTime,
+                runningCavity: cavity,
+                runningRunnerWeight: runnerWt,
+                runningNetWeight: partWt,
+                runningShiftTariff: tariff,
+                runningMbPct: mbPct,
+                runningMeltLossPct: 1.0,
+                runningEfficiencyPct: 95.0,
+                runningHaierOverheadPackage: haierOverheadPackage,
+                runningFoamPolybag: foamPolybag,
+                runningPlasticBin: plasticBin,
+                runningFreightCost: freightCost,
+                runningSecondaryOp1: secondaryOp1,
+                runningSecondaryOp2: secondaryOp2,
+                runningScreenPrint1: screenPrint1,
+                runningScreenPrint2: screenPrint2,
+                runningAssemblyCost: assemblyCost,
+                runningBopCost: bopCost,
+                runningMouldMaintenance: mouldMaintenance,
+                runningQualityInspection: qualityInspection,
+                runningIccReduce: iccReduce,
+                runningScrapAdj: scrapAdj,
+                runningPackingCost: packingCost,
+                runningTransportCost: transportCost
+              }
             });
           }
         }
@@ -332,15 +435,13 @@ export default function BaselineMasterPage() {
           setSelectedStagedIndex(0);
           setShowUploadModal(true);
         } else {
-          alert('Could not find product specifications in this file. Please check that column headers match.');
+          alert('Could not find product specifications in this file. Please check column headers.');
         }
       } catch (err) {
         console.error('Error parsing excel:', err);
         alert('Failed to parse Excel file: ' + err.message);
       }
     };
-    reader.readAsBinaryString(file);
-  };
     reader.readAsBinaryString(file);
   };
 
@@ -461,7 +562,7 @@ export default function BaselineMasterPage() {
 
           <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-sm text-xs">
             <Upload className="w-4 h-4" /> Upload & Stage Spec (.xlsx)
-            <input type="file" accept=".xlsx, .xls" onClick={e => e.target.value = null} onChange={handleFileUpload} className="hidden" />
+            <input type="file" accept=".xlsx, .xls" onClick={e => (e.target.value = null)} onChange={handleFileUpload} className="hidden" />
           </label>
 
           <div className="flex bg-slate-800 p-0.5 rounded-xl border border-slate-700">
