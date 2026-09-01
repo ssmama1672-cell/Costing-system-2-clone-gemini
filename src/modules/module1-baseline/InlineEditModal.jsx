@@ -25,6 +25,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   const runningMbWaRate = Number(mbInfo.activeMbWaPrice || mbInfo.approvedMbPrice || product.approvedMbPrice || (isAtomberg ? 154.00 : 242.00));
 
   const [formData, setFormData] = useState({
+    runnerRecoveryOption: item.runnerRecoveryOption || item.parameters?.runnerRecoveryOption || 'opt2',
     approvedRm: cleanMaterialStr,
     baseRm: rmLookupKey,
     approvedMb: mbLookupKey,
@@ -137,6 +138,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
 
   // Calculate Haier Cost
   const haierBaseCalc = calculateHaierCost({
+      runnerRecoveryOption: formData.runnerRecoveryOption || 'opt2',
     cavity: formData.cavity,
     netWeight: formData.partWeight,
     runnerWeight: formData.runnerWeight,
@@ -165,6 +167,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   });
 
   const haierRunningCalc = calculateHaierCost({
+      runnerRecoveryOption: formData.runnerRecoveryOption || 'opt2',
     cavity: formData.runningCavity,
     netWeight: formData.runningPartWeight,
     runnerWeight: formData.runningRunnerWeight,
@@ -904,6 +907,53 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-4 text-right font-mono">₹{Number(haierBaseCalc.masterbatchCost).toFixed(4)}</td>
                   <td className="py-1.5 px-4 text-right font-mono text-blue-800">₹{Number(haierRunningCalc.masterbatchCost).toFixed(4)}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹0.00</td>
+                </tr>
+                <tr className="bg-amber-50/70 border-y border-amber-200">
+                  <td className="py-2 px-3 font-mono text-slate-500 text-xs">14</td>
+                  <td className="py-2 px-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="font-bold text-amber-950 flex items-center gap-2 text-xs">
+                        <span>Runner Recovery (50%)</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-200/60 font-mono text-amber-900">
+                          {formData.runnerRecoveryOption === 'opt1' ? 'Option 1: Total' : 'Option 2: Per Cavity'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 pt-0.5">
+                        <label className="inline-flex items-center gap-1 text-[11px] text-slate-700 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="runnerRecOpt" 
+                            value="opt2"
+                            checked={formData.runnerRecoveryOption !== 'opt1'}
+                            onChange={() => setFormData(prev => ({ ...prev, runnerRecoveryOption: 'opt2' }))}
+                            className="w-3 h-3 text-blue-600 focus:ring-0 cursor-pointer"
+                          />
+                          <span>Opt 2: <span className="font-mono text-slate-500">(Runner / Cavity / 1000) * RM * 50%</span></span>
+                        </label>
+                        <label className="inline-flex items-center gap-1 text-[11px] text-slate-700 cursor-pointer">
+                          <input 
+                            type="radio" 
+                            name="runnerRecOpt" 
+                            value="opt1"
+                            checked={formData.runnerRecoveryOption === 'opt1'}
+                            onChange={() => setFormData(prev => ({ ...prev, runnerRecoveryOption: 'opt1' }))}
+                            className="w-3 h-3 text-blue-600 focus:ring-0 cursor-pointer"
+                          />
+                          <span>Opt 1: <span className="font-mono text-slate-500">(Runner / 1000) * RM * 50%</span></span>
+                        </label>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-2 px-3 text-center font-mono text-xs text-slate-500">Rs</td>
+                  <td className="py-2 px-4 text-right font-mono font-bold text-rose-600">
+                    -₹{Number(haierBaseCalc?.runnerRecoveryCost || 0).toFixed(4)}
+                  </td>
+                  <td className="py-2 px-4 text-right font-mono font-bold text-rose-600">
+                    -₹{Number(haierRunningCalc?.runnerRecoveryCost || 0).toFixed(4)}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono font-bold text-slate-700">
+                    ₹{Number((haierBaseCalc?.runnerRecoveryCost || 0) - (haierRunningCalc?.runnerRecoveryCost || 0)).toFixed(4)}
+                  </td>
                 </tr>
                 <tr className="bg-slate-50 font-bold">
                   <td className="py-1.5 px-3 font-mono text-slate-500">15</td>
