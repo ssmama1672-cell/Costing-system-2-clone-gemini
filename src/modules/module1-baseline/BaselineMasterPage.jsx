@@ -445,9 +445,13 @@ export default function BaselineMasterPage() {
         });
       }
 
-      setStagedData(parsed);
-      setSelectedStagedIndex(0);
-      setShowUploadModal(true);
+      if (parsed.length > 0) {
+        setStagedData(parsed);
+        setSelectedStagedIndex(0);
+        setShowUploadModal(true);
+      } else {
+        alert("No valid product columns found in the uploaded file. Please ensure the Excel contains component specifications.");
+      }
     };
     reader.readAsBinaryString(file);
   };
@@ -569,7 +573,7 @@ export default function BaselineMasterPage() {
 
           <label className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-sm text-xs">
             <Upload className="w-4 h-4" /> Upload & Stage Spec (.xlsx)
-            <input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="hidden" />
+            <input type="file" accept=".xlsx, .xls" onClick={e => e.target.value = null} onChange={handleFileUpload} className="hidden" />
           </label>
 
           <div className="flex bg-slate-800 p-0.5 rounded-xl border border-slate-700">
