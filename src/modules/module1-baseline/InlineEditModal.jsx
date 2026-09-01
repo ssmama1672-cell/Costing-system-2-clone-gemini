@@ -25,6 +25,8 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   const runningMbWaRate = Number(mbInfo.activeMbWaPrice || mbInfo.approvedMbPrice || product.approvedMbPrice || (isAtomberg ? 154.00 : 242.00));
 
   const [formData, setFormData] = useState({
+    postOpCost: Number(initialParams.postOpCost ?? product.postOpCost ?? 0),
+    runningPostOpCost: Number(initialParams.runningPostOpCost ?? initialParams.postOpCost ?? product.postOpCost ?? 0),
     runnerRecoveryOption: product.runnerRecoveryOption || product.parameters?.runnerRecoveryOption || 'opt2',
     approvedRm: cleanMaterialStr,
     baseRm: rmLookupKey,
@@ -46,7 +48,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     meltLossPct: Number(product.meltLossPct !== undefined ? product.meltLossPct : 1.0),
     efficiencyPct: Number(product.efficiencyPct !== undefined ? product.efficiencyPct : (isAtomberg ? 90.0 : 95.0)),
 
-    packingCost: Number(product.packingCost !== undefined ? product.packingCost : 0.86),
+    packingCost: Number(product.packingCost !== undefined ? product.packingCost : 0),
     transportCost: Number(product.transportCost !== undefined ? product.transportCost : 0.62),
     otherCost: Number(product.otherCost !== undefined ? product.otherCost : 0.00),
     mouldSize: product.mouldSize || (isAtomberg ? '450x450x380' : '800x800x684'),
@@ -80,7 +82,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     runningCavity: Number(initialParams.runningCavity ?? product.cavity ?? (isAtomberg ? 2 : 1)),
     runningMeltLossPct: Number(initialParams.runningMeltLossPct ?? product.meltLossPct ?? 1.0),
     runningEfficiencyPct: Number(initialParams.runningEfficiencyPct ?? product.efficiencyPct ?? (isAtomberg ? 90.0 : 95.0)),
-    runningPackingCost: Number(initialParams.runningPackingCost ?? product.packingCost ?? 0.86),
+    runningPackingCost: Number(initialParams.runningPackingCost ?? product.packingCost ?? 0),
     runningTransportCost: Number(initialParams.runningTransportCost ?? product.transportCost ?? 0.62),
     runningOtherCost: Number(initialParams.runningOtherCost ?? product.otherCost ?? 0.00),
 
@@ -112,8 +114,10 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     efficiencyPct: formData.efficiencyPct,
     tonnage: formData.tonnage,
     bopCost: formData.bopCost,
+    postOpCost: formData.postOpCost,
     packingCost: formData.packingCost,
-    transportCost: formData.freightCost || formData.transportCost
+    transportCost: formData.transportCost !== undefined ? formData.transportCost : (formData.freightCost || 0),
+    otherCost: formData.otherCost
   });
 
   const atombergRunningCalc = calculateAtombergCost({
@@ -128,8 +132,10 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
     efficiencyPct: formData.runningEfficiencyPct,
     tonnage: formData.runningTonnage || formData.tonnage,
     bopCost: formData.runningBopCost !== undefined ? formData.runningBopCost : formData.bopCost,
+    postOpCost: formData.runningPostOpCost !== undefined ? formData.runningPostOpCost : formData.postOpCost,
     packingCost: formData.runningPackingCost !== undefined ? formData.runningPackingCost : formData.packingCost,
-    transportCost: formData.runningFreightCost || formData.freightCost || formData.transportCost
+    transportCost: formData.runningTransportCost !== undefined ? formData.runningTransportCost : (formData.runningFreightCost || formData.transportCost || 0),
+    otherCost: formData.runningOtherCost !== undefined ? formData.runningOtherCost : formData.otherCost
   });
 
   // Calculate Haier Cost
@@ -1546,7 +1552,7 @@ export function calculateDetailedCost(product) {
       tonnage: Number(product.machineTonnage || 200),
       shiftTariff: Number(product.shiftTariff || 2000),
       efficiency: (Number(product.efficiencyPct !== undefined ? product.efficiencyPct : 90.0)) / 100,
-      packingCost: Number(product.packingCost !== undefined ? product.packingCost : 0.86),
+      packingCost: Number(product.packingCost !== undefined ? product.packingCost : 0),
       transportCost: Number(product.transportCost !== undefined ? product.transportCost : 0.62),
       otherCost: Number(product.otherCost !== undefined ? product.otherCost : 0.00)
     });
