@@ -120,6 +120,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   });
 
   const atombergRunningCalc = calculateAtombergCost({
+    efficiencyPct: Number(formData.runningEfficiencyPct || formData.efficiencyPct || 95),
     rmBase: runningRmWaRate,
     rmFreight: formData.runningRmFreight,
     mbBase: runningMbWaRate,
