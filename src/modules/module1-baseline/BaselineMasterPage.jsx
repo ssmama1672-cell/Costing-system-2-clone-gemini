@@ -850,19 +850,19 @@ export default function BaselineMasterPage() {
                       <td className="py-1.5 px-3 font-mono text-slate-500">5</td>
                       <td className="py-1.5 px-3 font-semibold text-slate-800">RM Base Rate (From RM Matrix)</td>
                       <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                      <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900">₹{atomStagedCalc?.rmBase.toFixed(2) || '131.00'}</td>
+                      <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900">₹{(atomStagedCalc && atomStagedCalc.rmBase !== undefined ? Number(atomStagedCalc.rmBase).toFixed(2) : '0.00') || '131.00'}</td>
                     </tr>
                     <tr>
                       <td className="py-1.5 px-3 font-mono text-slate-500">8</td>
                       <td className="py-1.5 px-3 font-bold">RM Landed Cost</td>
                       <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                      <td className="py-1.5 px-4 text-right font-mono font-bold">₹{atomStagedCalc?.rmLanded.toFixed(2) || '133.81'}</td>
+                      <td className="py-1.5 px-4 text-right font-mono font-bold">₹{(atomStagedCalc && atomStagedCalc.rmLanded !== undefined ? Number(atomStagedCalc.rmLanded).toFixed(2) : '0.00') || '133.81'}</td>
                     </tr>
                     <tr>
                       <td className="py-1.5 px-3 font-mono text-slate-500">12</td>
                       <td className="py-1.5 px-3 font-bold">MB Landed Cost</td>
                       <td className="py-1.5 px-3 text-center text-slate-600">₹/kg</td>
-                      <td className="py-1.5 px-4 text-right font-mono font-bold">₹{atomStagedCalc?.mbLanded.toFixed(2) || '157.54'}</td>
+                      <td className="py-1.5 px-4 text-right font-mono font-bold">₹{(atomStagedCalc && atomStagedCalc.mbLanded !== undefined ? Number(atomStagedCalc.mbLanded).toFixed(2) : '0.00') || '157.54'}</td>
                     </tr>
                     <tr className="bg-purple-50/40">
                       <td className="py-1.5 px-3 font-mono text-slate-500">13</td>
@@ -910,7 +910,7 @@ export default function BaselineMasterPage() {
                       <td className="py-1.5 px-3 font-mono text-slate-500">18</td>
                       <td className="py-1.5 px-3 text-emerald-950">RM cost</td>
                       <td className="py-1.5 px-3 text-center">₹/pc</td>
-                      <td className="py-1.5 px-4 text-right font-mono font-black text-emerald-900">₹{atomStagedCalc?.rmCostPerPc.toFixed(2) || '5.12'}</td>
+                      <td className="py-1.5 px-4 text-right font-mono font-black text-emerald-900">₹{(atomStagedCalc && atomStagedCalc.rmCostPerPc !== undefined ? Number(atomStagedCalc.rmCostPerPc).toFixed(2) : '0.00') || '5.12'}</td>
                     </tr>
                     <tr>
                       <td className="py-1.5 px-3 font-mono text-slate-500">22</td>
@@ -955,13 +955,13 @@ export default function BaselineMasterPage() {
                       <td className="py-1.5 px-3 font-mono text-slate-500">26</td>
                       <td className="py-1.5 px-3 font-bold text-slate-900">Parts/shift</td>
                       <td className="py-1.5 px-3 text-center">Nos</td>
-                      <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">{atomStagedCalc?.partsPerShift.toFixed(2) || '1102.98'}</td>
+                      <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">{(atomStagedCalc && atomStagedCalc.partsPerShift !== undefined ? Number(atomStagedCalc.partsPerShift).toFixed(2) : '0.00') || '1102.98'}</td>
                     </tr>
                     <tr className="bg-slate-100 font-bold">
                       <td className="py-1.5 px-3 font-mono text-slate-500">30</td>
                       <td className="py-1.5 px-3">Total Process Cost</td>
                       <td className="py-1.5 px-3 text-center">₹/pc</td>
-                      <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">₹{atomStagedCalc?.totalProcessCost.toFixed(2) || '3.54'}</td>
+                      <td className="py-1.5 px-4 text-right font-mono font-black text-slate-900">₹{(atomStagedCalc && atomStagedCalc.totalProcessCost !== undefined ? Number(atomStagedCalc.totalProcessCost).toFixed(2) : '0.00') || '3.54'}</td>
                     </tr>
                     <tr className="bg-slate-900 text-white font-black">
                       <td className="py-2.5 px-3 font-mono text-amber-400">38</td>

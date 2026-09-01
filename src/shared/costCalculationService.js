@@ -43,37 +43,39 @@ export function calculateAtombergCost(params = {}) {
   const partsPerShift = cycleTime > 0 ? (((8 * 3600) / cycleTime) * cavity * (efficiencyPct / 100)) : 0; // Row 26
   const processCostPerPc = partsPerShift > 0 ? Number((shiftTariff / partsPerShift).toFixed(2)) : 0; // Row 27
   
-  // Row 28: Handling BOP = BOP Cost * 3%
+  // Rule 1: Row 28 (Handling BOP) = BOP Cost * 3%
   const handlingBop = Number((bopCost * 0.03).toFixed(2)); // Row 28
   
-  // Row 29: Post Operation Cost (Editable user input)
+  // Rule 0: Row 29 (Post Operation Cost) = editable input
   const postOpCost = Number(params.postOpCost !== undefined ? params.postOpCost : 0); // Row 29
   
-  // Row 30: Total Process Cost = Process cost / pc + Handling BOP (3%) + Post Operation Cost
+  // Rule 4: Total Process Cost = Process cost / pc + Handling BOP (3%) + Post Operation Cost
   const totalProcessCost = Number((processCostPerPc + handlingBop + postOpCost).toFixed(2)); // Row 30
 
-  // 6. Overheads & Margin: (Total Process Cost + RM Cost) * 12% & 4%
+  // Rule 2 & 3: OH & Profit (12%) and In-process Rejection (4%) = (Total Process Cost + RM cost) * %
   const rmPlusProcess = rmCostPerPc + totalProcessCost;
   const ohProfit = Number((rmPlusProcess * 0.12).toFixed(2)); // Row 31
   const inProcessRejection = Number((rmPlusProcess * 0.04).toFixed(2)); // Row 32
 
-  // 7. Runner Recovery Credit (credit is fixed -25/kg on runnerWt)
+  // Runner Recovery Credit (-₹25/kg on runnerWt)
   const runnerCredit = Number((((runnerWt / 1000) * 25)).toFixed(2)); // Row 33 (deduction)
 
-  // 8. Commercials
+  // Commercials
   const packingCost = Number(params.packingCost !== undefined ? params.packingCost : 0); // Row 34
   const transportCost = Number(params.transportCost !== undefined ? params.transportCost : 0); // Row 35
   
-  // Row 36: Mould maintenance cost = Total Process Cost * 2%
+  // Rule 5: Mould maintenance cost (Row 36) = Total Process Cost * 2%
   const mouldMaintenance = Number((totalProcessCost * 0.02).toFixed(2)); // Row 36
   const otherCost = Number(params.otherCost !== undefined ? params.otherCost : 0); // Row 37
 
-  // 9. Final Landed Cost
+  // Final Landed Cost
   const finalLanded = Number((rmCostPerPc + bopCost + totalProcessCost + ohProfit + inProcessRejection - runnerCredit + packingCost + transportCost + mouldMaintenance + otherCost).toFixed(2));
 
   return {
+    rmBase,
     rmLanded,
     rmIcc,
+    mbBase,
     mbLanded,
     mbIcc,
     blendedRmRate,
