@@ -734,7 +734,7 @@ export function addStagedProductsToBaseline(stagedList, vendor) {
   notifyStore();
 
   if (supabase && upsertRows.length > 0) {
-    supabase.from('baseline_products').upsert(upsertRows).catch(console.error);
+    Promise.resolve(supabase.from('baseline_products').upsert(upsertRows)).catch(console.error);
   }
 }
 
@@ -783,7 +783,7 @@ export function addAuditLog(entry) {
   globalStore.auditLogs.unshift(logItem);
 
   if (supabase) {
-    supabase.from('audit_logs').insert({
+    Promise.resolve(supabase.from('audit_logs').insert({
       timestamp: logItem.timestamp,
       part_code: logItem.partCode,
       component_name: logItem.componentName,
@@ -791,7 +791,7 @@ export function addAuditLog(entry) {
       modifications: logItem.modifications,
       cost_impact: logItem.costImpact,
       reason: logItem.reason
-    }).catch(console.error);
+    })).catch(console.error);
   }
 }
 
