@@ -25,7 +25,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   const runningMbWaRate = Number(mbInfo.activeMbWaPrice || mbInfo.approvedMbPrice || product.approvedMbPrice || (isAtomberg ? 154.00 : 242.00));
 
   const [formData, setFormData] = useState({
-    runnerRecoveryOption: item.runnerRecoveryOption || item.parameters?.runnerRecoveryOption || 'opt2',
+    runnerRecoveryOption: product.runnerRecoveryOption || product.parameters?.runnerRecoveryOption || 'opt2',
     approvedRm: cleanMaterialStr,
     baseRm: rmLookupKey,
     approvedMb: mbLookupKey,
@@ -1386,92 +1386,92 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
   );
 }
 
-export function calculateDetailedCost(item) {
-  if (!item) return { approvedBaselineCost: 0, simulatedActualCost: 0, totalCost: 0, finalLanded: 0, delta: 0 };
+export function calculateDetailedCost(product) {
+  if (!product) return { approvedBaselineCost: 0, simulatedActualCost: 0, totalCost: 0, finalLanded: 0, delta: 0 };
   
-  const isHaier = (item.vendor || '').toLowerCase().includes('haier');
-  const isAtomberg = (item.vendor || '').toLowerCase().includes('atomberg');
-  const params = item.parameters || {};
+  const isHaier = (product.vendor || '').toLowerCase().includes('haier');
+  const isAtomberg = (product.vendor || '').toLowerCase().includes('atomberg');
+  const params = product.parameters || {};
 
-  const cleanMaterialStr = sanitizeMaterialName(item.approvedRm || item.baseRm, item.componentName, item.itemCode, item.vendor);
+  const cleanMaterialStr = sanitizeMaterialName(product.approvedRm || product.baseRm, product.componentName, product.itemCode, product.vendor);
   const { baseRm, mbGrade } = parseMaterialString(cleanMaterialStr);
-  const rmInfo = getActiveRmMapping(baseRm || item.baseRm || cleanMaterialStr, item.vendor) || {};
-  const mbInfo = getActiveMbMapping(mbGrade || item.approvedMb, item.vendor) || {};
+  const rmInfo = getActiveRmMapping(baseRm || product.baseRm || cleanMaterialStr, product.vendor) || {};
+  const mbInfo = getActiveMbMapping(mbGrade || product.approvedMb, product.vendor) || {};
 
-  const approvedRmRate = Number(item.approvedRmPrice || rmInfo.approvedPrice || (isAtomberg ? 131.00 : 154.00));
+  const approvedRmRate = Number(product.approvedRmPrice || rmInfo.approvedPrice || (isAtomberg ? 131.00 : 154.00));
   const runningRmWaRate = Number(params.runningRmBaseRate ?? rmInfo.activeWaPrice ?? rmInfo.approvedPrice ?? approvedRmRate);
 
-  const approvedMbRate = Number(item.approvedMbPrice || mbInfo.approvedMbPrice || (isAtomberg ? 154.00 : 242.00));
+  const approvedMbRate = Number(product.approvedMbPrice || mbInfo.approvedMbPrice || (isAtomberg ? 154.00 : 242.00));
   const runningMbWaRate = Number(params.runningMbBaseRate ?? mbInfo.activeMbWaPrice ?? mbInfo.approvedMbPrice ?? approvedMbRate);
 
   if (isHaier) {
-    const ctApp = Number(item.cycleTimeApproved) > 0 ? Number(item.cycleTimeApproved) : 70;
-    const cavApp = Number(item.cavity) > 0 ? Number(item.cavity) : 1;
-    const meltLossApp = Number(item.meltLossPct !== undefined ? item.meltLossPct : 1.0);
-    const effApp = Number(item.efficiencyPct !== undefined ? item.efficiencyPct : 95.0);
+    const ctApp = Number(product.cycleTimeApproved) > 0 ? Number(product.cycleTimeApproved) : 70;
+    const cavApp = Number(product.cavity) > 0 ? Number(product.cavity) : 1;
+    const meltLossApp = Number(product.meltLossPct !== undefined ? product.meltLossPct : 1.0);
+    const effApp = Number(product.efficiencyPct !== undefined ? product.efficiencyPct : 95.0);
 
     const baseCalc = calculateHaierCost({
       cavity: cavApp,
-      netWeight: Number(item.netWeight || 372),
-      runnerWeight: Number(item.runnerWeight || 0),
-      shotWeight: Number(item.shotWeight || (Number(item.netWeight || 372) * cavApp)),
+      netWeight: Number(product.netWeight || 372),
+      runnerWeight: Number(product.runnerWeight || 0),
+      shotWeight: Number(product.shotWeight || (Number(product.netWeight || 372) * cavApp)),
       meltLossPct: meltLossApp,
       efficiencyPct: effApp,
       rmRate: approvedRmRate,
-      masterbatchPct: Number(item.masterbatchPct || 4),
+      masterbatchPct: Number(product.masterbatchPct || 4),
       masterbatchRate: approvedMbRate,
-      shiftTariff: Number(item.shiftTariff || 4800),
+      shiftTariff: Number(product.shiftTariff || 4800),
       cycleTime: ctApp,
-      haierOverheadPackage: Number(item.haierOverheadPackage !== undefined ? item.haierOverheadPackage : 0),
-      foamPolybag: Number(item.foamPolybag || 0),
-      plasticBin: Number(item.plasticBin || 0),
-      freightCost: Number(item.freightCost || 0),
-      secondaryOp1: Number(item.secondaryOp1 || 0),
-      secondaryOp2: Number(item.secondaryOp2 || 0),
-      screenPrint1: Number(item.screenPrint1 || 0),
-      screenPrint2: Number(item.screenPrint2 || 0),
-      assemblyCost: Number(item.assemblyCost || 0),
-      bopCost: Number(item.bopCost || 0),
-      mouldMaintenance: Number(item.mouldMaintenance || 0),
-      qualityInspection: Number(item.qualityInspection || 0),
-      iccReduce: Number(item.iccReduce || 0),
-      scrapAdj: Number(item.scrapAdj || 0)
+      haierOverheadPackage: Number(product.haierOverheadPackage !== undefined ? product.haierOverheadPackage : 0),
+      foamPolybag: Number(product.foamPolybag || 0),
+      plasticBin: Number(product.plasticBin || 0),
+      freightCost: Number(product.freightCost || 0),
+      secondaryOp1: Number(product.secondaryOp1 || 0),
+      secondaryOp2: Number(product.secondaryOp2 || 0),
+      screenPrint1: Number(product.screenPrint1 || 0),
+      screenPrint2: Number(product.screenPrint2 || 0),
+      assemblyCost: Number(product.assemblyCost || 0),
+      bopCost: Number(product.bopCost || 0),
+      mouldMaintenance: Number(product.mouldMaintenance || 0),
+      qualityInspection: Number(product.qualityInspection || 0),
+      iccReduce: Number(product.iccReduce || 0),
+      scrapAdj: Number(product.scrapAdj || 0)
     });
 
-    const ctRun = Number(params.runningCycleTime ?? item.cycleTimeApproved ?? 70);
-    const cavRun = Number(params.runningCavity ?? item.cavity ?? 1);
-    const meltLossRun = Number(params.runningMeltLossPct ?? item.meltLossPct ?? 1.0);
-    const effRun = Number(params.runningEfficiencyPct ?? item.efficiencyPct ?? 95.0);
+    const ctRun = Number(params.runningCycleTime ?? product.cycleTimeApproved ?? 70);
+    const cavRun = Number(params.runningCavity ?? product.cavity ?? 1);
+    const meltLossRun = Number(params.runningMeltLossPct ?? product.meltLossPct ?? 1.0);
+    const effRun = Number(params.runningEfficiencyPct ?? product.efficiencyPct ?? 95.0);
 
     const runningCalc = calculateHaierCost({
       cavity: cavRun,
-      netWeight: Number(params.runningNetWeight ?? item.netWeight ?? 372),
-      runnerWeight: Number(params.runningRunnerWeight ?? item.runnerWeight ?? 0),
-      shotWeight: Number(params.runningNetWeight ?? item.netWeight ?? 372) * cavRun + Number(params.runningRunnerWeight ?? item.runnerWeight ?? 0),
+      netWeight: Number(params.runningNetWeight ?? product.netWeight ?? 372),
+      runnerWeight: Number(params.runningRunnerWeight ?? product.runnerWeight ?? 0),
+      shotWeight: Number(params.runningNetWeight ?? product.netWeight ?? 372) * cavRun + Number(params.runningRunnerWeight ?? product.runnerWeight ?? 0),
       meltLossPct: meltLossRun,
       efficiencyPct: effRun,
       rmRate: runningRmWaRate,
-      masterbatchPct: Number(params.runningMbPct ?? item.masterbatchPct ?? 4),
+      masterbatchPct: Number(params.runningMbPct ?? product.masterbatchPct ?? 4),
       masterbatchRate: runningMbWaRate,
-      shiftTariff: Number(params.runningShiftTariff ?? item.shiftTariff ?? 4800),
+      shiftTariff: Number(params.runningShiftTariff ?? product.shiftTariff ?? 4800),
       cycleTime: ctRun,
-      haierOverheadPackage: Number(params.runningHaierOverheadPackage ?? item.haierOverheadPackage ?? 0),
-      foamPolybag: Number(params.runningFoamPolybag ?? item.foamPolybag ?? 0),
-      plasticBin: Number(params.runningPlasticBin ?? item.plasticBin ?? 0),
-      freightCost: Number(params.runningFreightCost ?? item.freightCost ?? 0),
-      secondaryOp1: Number(params.runningSecondaryOp1 ?? item.secondaryOp1 ?? 0),
-      secondaryOp2: Number(params.secondaryOp2 ?? item.secondaryOp2 ?? 0),
-      screenPrint1: Number(params.runningScreenPrint1 ?? item.screenPrint1 ?? 0),
-      screenPrint2: Number(params.screenPrint2 ?? item.screenPrint2 ?? 0),
-      assemblyCost: Number(params.runningAssemblyCost ?? item.assemblyCost ?? 0),
-      bopCost: Number(params.runningBopCost ?? item.bopCost ?? 0),
-      mouldMaintenance: Number(params.runningMouldMaintenance ?? item.mouldMaintenance ?? 0),
-      qualityInspection: Number(params.runningQualityInspection ?? item.qualityInspection ?? 0),
-      iccReduce: Number(params.runningIccReduce ?? item.iccReduce ?? 0),
-      scrapAdj: Number(params.runningScrapAdj ?? item.scrapAdj ?? 0)
+      haierOverheadPackage: Number(params.runningHaierOverheadPackage ?? product.haierOverheadPackage ?? 0),
+      foamPolybag: Number(params.runningFoamPolybag ?? product.foamPolybag ?? 0),
+      plasticBin: Number(params.runningPlasticBin ?? product.plasticBin ?? 0),
+      freightCost: Number(params.runningFreightCost ?? product.freightCost ?? 0),
+      secondaryOp1: Number(params.runningSecondaryOp1 ?? product.secondaryOp1 ?? 0),
+      secondaryOp2: Number(params.secondaryOp2 ?? product.secondaryOp2 ?? 0),
+      screenPrint1: Number(params.runningScreenPrint1 ?? product.screenPrint1 ?? 0),
+      screenPrint2: Number(params.screenPrint2 ?? product.screenPrint2 ?? 0),
+      assemblyCost: Number(params.runningAssemblyCost ?? product.assemblyCost ?? 0),
+      bopCost: Number(params.runningBopCost ?? product.bopCost ?? 0),
+      mouldMaintenance: Number(params.runningMouldMaintenance ?? product.mouldMaintenance ?? 0),
+      qualityInspection: Number(params.runningQualityInspection ?? product.qualityInspection ?? 0),
+      iccReduce: Number(params.runningIccReduce ?? product.iccReduce ?? 0),
+      scrapAdj: Number(params.runningScrapAdj ?? product.scrapAdj ?? 0)
     });
 
-    const approvedBaselineCost = Number(item.approvedCost || baseCalc.totalCost || 0);
+    const approvedBaselineCost = Number(product.approvedCost || baseCalc.totalCost || 0);
     const simulatedActualCost = Number(runningCalc.totalCost || approvedBaselineCost || 0);
 
     return {
@@ -1484,43 +1484,43 @@ export function calculateDetailedCost(item) {
   } else {
     const baseCalc = calculateAtombergCost({
       rmBase: approvedRmRate,
-      rmFreight: Number(item.rmFreight !== undefined ? item.rmFreight : 1.50),
+      rmFreight: Number(product.rmFreight !== undefined ? product.rmFreight : 1.50),
       mbBase: approvedMbRate,
-      mbFreight: Number(item.mbFreight !== undefined ? item.mbFreight : 2.00),
-      partWt: Number(item.netWeight !== undefined ? item.netWeight : 37.00),
-      runnerWt: Number(item.runnerWeight !== undefined ? item.runnerWeight : 1.00),
-      mbPct: (Number(item.masterbatchPct !== undefined ? item.masterbatchPct : 4)) / 100,
-      bopCost: Number(item.bopCost || 0),
-      cycleTime: Number(item.cycleTimeApproved || 47),
-      cavity: Number(item.cavity || 2),
-      tonnage: Number(item.machineTonnage || 200),
-      shiftTariff: Number(item.shiftTariff || 2000),
-      efficiency: (Number(item.efficiencyPct !== undefined ? item.efficiencyPct : 90.0)) / 100,
-      packingCost: Number(item.packingCost !== undefined ? item.packingCost : 0.86),
-      transportCost: Number(item.transportCost !== undefined ? item.transportCost : 0.62),
-      otherCost: Number(item.otherCost !== undefined ? item.otherCost : 0.00)
+      mbFreight: Number(product.mbFreight !== undefined ? product.mbFreight : 2.00),
+      partWt: Number(product.netWeight !== undefined ? product.netWeight : 37.00),
+      runnerWt: Number(product.runnerWeight !== undefined ? product.runnerWeight : 1.00),
+      mbPct: (Number(product.masterbatchPct !== undefined ? product.masterbatchPct : 4)) / 100,
+      bopCost: Number(product.bopCost || 0),
+      cycleTime: Number(product.cycleTimeApproved || 47),
+      cavity: Number(product.cavity || 2),
+      tonnage: Number(product.machineTonnage || 200),
+      shiftTariff: Number(product.shiftTariff || 2000),
+      efficiency: (Number(product.efficiencyPct !== undefined ? product.efficiencyPct : 90.0)) / 100,
+      packingCost: Number(product.packingCost !== undefined ? product.packingCost : 0.86),
+      transportCost: Number(product.transportCost !== undefined ? product.transportCost : 0.62),
+      otherCost: Number(product.otherCost !== undefined ? product.otherCost : 0.00)
     });
 
     const runningCalc = calculateAtombergCost({
       rmBase: runningRmWaRate,
-      rmFreight: Number(params.runningRmFreight ?? item.rmFreight ?? 1.50),
+      rmFreight: Number(params.runningRmFreight ?? product.rmFreight ?? 1.50),
       mbBase: runningMbWaRate,
-      mbFreight: Number(params.runningMbFreight ?? item.mbFreight ?? 2.00),
-      partWt: Number(params.runningNetWeight ?? item.netWeight ?? 37.00),
-      runnerWt: Number(params.runningRunnerWeight ?? item.runnerWeight ?? 1.00),
-      mbPct: (Number(params.runningMbPct ?? item.masterbatchPct ?? 4)) / 100,
-      bopCost: Number(params.runningBopCost ?? item.bopCost ?? 0),
-      cycleTime: Number(params.runningCycleTime ?? item.cycleTimeApproved ?? 47),
-      cavity: Number(params.runningCavity ?? item.cavity ?? 2),
-      tonnage: Number(item.machineTonnage || 200),
-      shiftTariff: Number(params.runningShiftTariff ?? item.shiftTariff ?? 2000),
-      efficiency: (Number(params.runningEfficiencyPct ?? item.efficiencyPct ?? 90.0)) / 100,
-      packingCost: Number(params.runningPackingCost ?? item.packingCost ?? 0.86),
-      transportCost: Number(params.runningTransportCost ?? item.transportCost ?? 0.62),
-      otherCost: Number(params.runningOtherCost ?? item.otherCost ?? 0.00)
+      mbFreight: Number(params.runningMbFreight ?? product.mbFreight ?? 2.00),
+      partWt: Number(params.runningNetWeight ?? product.netWeight ?? 37.00),
+      runnerWt: Number(params.runningRunnerWeight ?? product.runnerWeight ?? 1.00),
+      mbPct: (Number(params.runningMbPct ?? product.masterbatchPct ?? 4)) / 100,
+      bopCost: Number(params.runningBopCost ?? product.bopCost ?? 0),
+      cycleTime: Number(params.runningCycleTime ?? product.cycleTimeApproved ?? 47),
+      cavity: Number(params.runningCavity ?? product.cavity ?? 2),
+      tonnage: Number(product.machineTonnage || 200),
+      shiftTariff: Number(params.runningShiftTariff ?? product.shiftTariff ?? 2000),
+      efficiency: (Number(params.runningEfficiencyPct ?? product.efficiencyPct ?? 90.0)) / 100,
+      packingCost: Number(params.runningPackingCost ?? product.packingCost ?? 0.86),
+      transportCost: Number(params.runningTransportCost ?? product.transportCost ?? 0.62),
+      otherCost: Number(params.runningOtherCost ?? product.otherCost ?? 0.00)
     });
 
-    const approvedBaselineCost = Number(item.approvedCost || baseCalc.finalLanded || 0);
+    const approvedBaselineCost = Number(product.approvedCost || baseCalc.finalLanded || 0);
     const simulatedActualCost = Number(runningCalc.finalLanded || approvedBaselineCost || 0);
 
     return {
