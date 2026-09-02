@@ -8,6 +8,8 @@ export default function CostingRunEnginePage() {
   const [storeState, setStoreState] = useState(globalStore);
   const [selectedVendor, setSelectedVendor] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [periodFrom, setPeriodFrom] = useState('2026-08-01');
+  const [periodTo, setPeriodTo] = useState('2026-08-31');
 
   useEffect(() => {
     const unsub = subscribeStore(() => setStoreState({ ...globalStore }));
@@ -81,15 +83,63 @@ export default function CostingRunEnginePage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-300 overflow-hidden shadow-sm">
-        <div className="p-3 bg-slate-900 text-white flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-400" />
-            <h2 className="text-xs font-bold uppercase tracking-wider">Live Product Cost Simulation Matrix</h2>
+        <div className="p-3 bg-slate-900 text-white flex flex-wrap justify-between items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-blue-400" />
+              <h2 className="text-xs font-bold uppercase tracking-wider">Live Product Cost Simulation Matrix</h2>
+            </div>
+            
+            {/* VENDOR & PERIOD FILTER CONTROLS */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
+                <span className="text-slate-400 font-bold text-[11px]">Vendor:</span>
+                <select 
+                  value={selectedVendor} 
+                  onChange={e => setSelectedVendor(e.target.value)}
+                  className="bg-transparent text-white font-bold text-xs focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL" className="bg-slate-900 text-white">All Vendors Combined</option>
+                  {vendors.map(v => (
+                    <option key={v.vendorId || v} value={v.vendorId || v} className="bg-slate-900 text-white">
+                      {v.vendorName || v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-xl border border-slate-700">
+                <span className="text-slate-400 font-bold text-[11px]">Period:</span>
+                <input 
+                  type="date" 
+                  value={periodFrom} 
+                  onChange={e => setPeriodFrom(e.target.value)} 
+                  className="bg-transparent text-white font-mono text-[11px] focus:outline-none"
+                />
+                <span className="text-slate-500">to</span>
+                <input 
+                  type="date" 
+                  value={periodTo} 
+                  onChange={e => setPeriodTo(e.target.value)} 
+                  className="bg-transparent text-white font-mono text-[11px] focus:outline-none"
+                />
+              </div>
+
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search parts..." 
+                  value={searchQuery} 
+                  onChange={e => setSearchQuery(e.target.value)} 
+                  className="bg-slate-800 text-white text-xs pl-8 pr-3 py-1 rounded-xl border border-slate-700 focus:outline-none w-36 focus:w-48 transition-all"
+                />
+              </div>
+
+              <button onClick={handleDownloadCostMatrix} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center gap-1.5 text-xs cursor-pointer shadow-sm">
+                <Download className="w-3.5 h-3.5" /> Download Cost Matrix (.xlsx)
+              </button>
+            </div>
           </div>
-          <button onClick={handleDownloadCostMatrix} className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center gap-1.5 text-xs">
-            <Download className="w-3.5 h-3.5" /> Download Cost Matrix (.xlsx)
-          </button>
-        </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">

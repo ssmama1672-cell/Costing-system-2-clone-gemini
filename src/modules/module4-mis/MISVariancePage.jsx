@@ -50,8 +50,11 @@ export default function MISVariancePage() {
   const filteredSales = sales.filter(s => {
     const sVendorNorm = normalizeVendorId(s.vendor);
     const matchVendor = selectedVendor === 'ALL' || sVendorNorm === normalizeVendorId(selectedVendor);
-    const sDate = s.date || s.invoiceDate || '';
-    const matchDate = (!periodFrom || sDate >= periodFrom) && (!periodTo || sDate <= periodTo);
+    const sRawDate = s.date || s.invoiceDate || '2026-08-15';
+      const sDate = typeof sRawDate === 'number' 
+        ? new Date(Math.round((sRawDate - 25569) * 86400 * 1000)).toISOString().slice(0, 10)
+        : String(sRawDate).slice(0, 10);
+      const matchDate = (!periodFrom || sDate >= periodFrom) && (!periodTo || sDate <= periodTo);
     return matchVendor && matchDate;
   });
 
