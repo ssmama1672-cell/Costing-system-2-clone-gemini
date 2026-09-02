@@ -1,3 +1,4 @@
+import { upsertProductCosting } from "../../shared/supabaseDataService";
 import React, { useState } from 'react';
 import { X, Save, Trash2, Lock, Eye } from 'lucide-react';
 import { calculateHaierCost, calculateAtombergCost } from '../../shared/costCalculationService';
@@ -206,7 +207,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
       onClose();
       return;
     }
-    onSave({
+    const savedItem = {
       ...product,
       ...formData,
       approvedCost: contractTotal,
@@ -251,7 +252,9 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
         runningScrapAdj: formData.runningScrapAdj
       },
       delta: profitLossDelta
-    });
+    };
+      onSave(savedItem);
+      upsertProductCosting(savedItem).catch(err => console.error("Supabase direct save error:", err));
     onClose();
   };
 

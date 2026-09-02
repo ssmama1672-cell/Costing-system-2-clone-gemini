@@ -1,3 +1,4 @@
+import { fetchAllProductsFromSupabase, upsertProductCosting } from "../../shared/supabaseDataService";
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Upload, 
