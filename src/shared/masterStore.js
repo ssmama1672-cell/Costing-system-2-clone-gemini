@@ -1,12 +1,6 @@
 
 // INITIAL_SAMPLE_SALES_SEEDED
-const initialSampleSales = [
-  { id: 'sal-1', date: '2026-08-05', vendor: 'Haier Appliances', itemCode: '0060235291A', invoiceNo: 'INV-HAI-801', componentName: 'FRZ DUCT-FRONT COVER-HIPS-TM-250/280L', qty: 1200, rate: 95.00, amount: 114000 },
-  { id: 'sal-2', date: '2026-08-12', vendor: 'Haier Appliances', itemCode: '0060217989D', invoiceNo: 'INV-HAI-802', componentName: 'End cap Bottom Ref-ABS-DC-195,220', qty: 2500, rate: 30.50, amount: 76250 },
-  { id: 'sal-3', date: '2026-08-18', vendor: 'Haier Appliances', itemCode: '0060226714H', invoiceNo: 'INV-HAI-803', componentName: 'END CAP U REF-ABS NEW DC 195/220L', qty: 1800, rate: 38.00, amount: 68400 },
-  { id: 'sal-4', date: '2026-08-20', vendor: 'Atomberg Technologies', itemCode: 'Aris Bottom Canopy- Gloss White', invoiceNo: 'INV-ATM-501', componentName: 'Aris Bottom Canopy- Gloss White', qty: 3500, rate: 12.00, amount: 42000 },
-  { id: 'sal-5', date: '2026-08-25', vendor: 'Atomberg Technologies', itemCode: 'Aris Top Canopy- Gloss White', invoiceNo: 'INV-ATM-502', componentName: 'Aris Top Canopy- Gloss White', qty: 3500, rate: 14.50, amount: 50750 }
-];
+// No mock sample sales in production
 
 // ============================================================================
 // GLOBAL MASTER DATA STORE (Supabase Cloud Sync + Multi-Lot WA Engine)
@@ -172,7 +166,7 @@ const defaultStore = {
   rmMappingsData: [],
   baselineProducts: [],
   purchases: [],
-  sales: initialSampleSales,
+  sales: [],
   auditLogs: []
 };
 
@@ -545,8 +539,30 @@ export function getProductsUsingMaterial(matCode, vendor) {
 }
 
 export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
+  if (!globalStore.rmPriceHistory) globalStore.rmPriceHistory = [];
   if (!globalStore.vendorSchedules) globalStore.vendorSchedules = {};
   const vNorm = normalizeVendorId(vendor);
+
+  // Archive immutable rate snapshot for RMcode + Vendor + Period
+  (globalStore.rmMappingsData || []).forEach(r => {
+    if (normalizeVendorId(r.vendor) === vNorm) {
+      const historyKey = `${r.approvedCode}_${vNorm}_${periodFrom}_${periodTo}`;
+      const exists = globalStore.rmPriceHistory.some(h => h.historyKey === historyKey);
+      if (!exists) {
+        globalStore.rmPriceHistory.push({
+          historyKey,
+          materialCode: r.approvedCode,
+          type: r.type,
+          vendor: r.vendor,
+          periodFrom,
+          periodTo,
+          approvedPrice: r.approvedPrice,
+          activeWaPrice: r.activeWaPrice || r.approvedPrice,
+          archivedAt: new Date().toISOString()
+        });
+      }
+    }
+  });
 
   globalStore.vendorSchedules[vendor] = {
     periodFrom,

@@ -292,21 +292,23 @@ export default function BaselineMasterPage() {
             const resolvedMb = mbCodeStr || mbGrade || (isHaierVendor ? 'White MB' : 'Gloss White MB');
 
             if (baseRm) {
-              addOrUpdateVendorMaterial({
-                vendor: selectedVendor,
-                type: 'RM',
-                approvedCode: baseRm,
-                approvedPrice: rmBaseRate
-              });
-            }
-            if (resolvedMb) {
-              addOrUpdateVendorMaterial({
-                vendor: selectedVendor,
-                type: 'MB',
-                approvedCode: resolvedMb,
-                approvedPrice: mbBaseRate
-              });
-            }
+                const existingRm = getActiveRmMapping(baseRm, selectedVendor);
+                addOrUpdateVendorMaterial({
+                  vendor: selectedVendor,
+                  type: 'RM',
+                  approvedCode: baseRm,
+                  approvedPrice: existingRm && existingRm.approvedPrice > 0 ? existingRm.approvedPrice : rmBaseRate
+                });
+              }
+              if (resolvedMb) {
+                const existingMb = getActiveRmMapping(resolvedMb, selectedVendor);
+                addOrUpdateVendorMaterial({
+                  vendor: selectedVendor,
+                  type: 'MB',
+                  approvedCode: resolvedMb,
+                  approvedPrice: existingMb && existingMb.approvedPrice > 0 ? existingMb.approvedPrice : mbBaseRate
+                });
+              }
 
             let calcResult = 0;
             if (isHaierVendor) {

@@ -454,21 +454,45 @@ export default function RMPriceMatrixPage() {
       const wb = XLSX.read(bstr, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws);
+
+      const existingKeys = new Set(
+        (storeState.sales || []).map(s => `${normalizeVendorId(s.vendor)}_${(s.invoiceNo || '').trim()}_${(s.itemCode || '').trim()}_${s.date}`)
+      );
+
+      let addedCount = 0;
+      let duplicateCount = 0;
+
       data.forEach(d => {
-        addDayWiseSales({
-          date: parseSafeDate(d["Dispatch Date (YYYY-MM-DD)"] || d["Date"] || d.Date || d.date),
-          vendor: selectedVendor,
-          itemCode: d["Item Code"] || d.itemCode || '',
-          invoiceNo: d["Invoice Number"] || d.Invoice || d.invoiceNo || '',
-          componentName: d["Component Name"] || d.componentName || '',
-          qty: parseFloat(d["Dispatch Qty (Nos)"] || d.Quantity || d.qty || 0),
-          rate: parseFloat(d["Selling Price (₹/Pc)"] || d.Rate || d.sellingPrice || 0),
-          amount: parseFloat(d["Dispatch Qty (Nos)"] || d.qty || 0) * parseFloat(d["Selling Price (₹/Pc)"] || d.sellingPrice || 0)
-        });
+        const itemCode = String(d["Item Code"] || d.itemCode || '').trim();
+        const invoiceNo = String(d["Invoice Number"] || d.Invoice || d.invoiceNo || '').trim();
+        const rawDate = d["Dispatch Date (YYYY-MM-DD)"] || d["Date"] || d.Date || d.date;
+        const parsedDate = parseSafeDate(rawDate);
+        const qty = parseFloat(d["Dispatch Qty (Nos)"] || d.Quantity || d.qty || 0);
+        const rate = parseFloat(d["Selling Price (₹/Pc)"] || d.Rate || d.sellingPrice || 0);
+
+        const rowKey = `${normalizeVendorId(selectedVendor)}_${invoiceNo}_${itemCode}_${parsedDate}`;
+
+        if (existingKeys.has(rowKey)) {
+          duplicateCount++;
+        } else {
+          existingKeys.add(rowKey);
+          addedCount++;
+          addDayWiseSales({
+            date: parsedDate,
+            vendor: selectedVendor,
+            itemCode: itemCode,
+            invoiceNo: invoiceNo,
+            componentName: d["Component Name"] || d.componentName || '',
+            qty: qty,
+            rate: rate,
+            amount: qty * rate
+          });
+        }
       });
-      alert(`Imported ${data.length} sales dispatch records for ${selectedVendor}!`);
+      alert(`Upload Staging Summary for ${selectedVendor}:\n\n✅ ${addedCount} Unique Records Added\n⚠️ ${duplicateCount} Duplicate Records Skipped`);
     };
     reader.readAsBinaryString(file);
+    e.target.value = "";
   };
 
   const handleAddPurchase = (e) => {

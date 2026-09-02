@@ -24,7 +24,7 @@ export default function MISVariancePage() {
   const [storeState, setStoreState] = useState(globalStore);
   const [selectedVendor, setSelectedVendor] = useState('ALL');
   const [drilldownVendor, setDrilldownVendor] = useState('Haier Appliances');
-  const [periodFrom, setPeriodFrom] = useState('2026-08-01');
+  const [periodFrom, setPeriodFrom] = useState('2026-07-01');
   const [periodTo, setPeriodTo] = useState('2026-08-31');
   const [activeTab, setActiveTab] = useState('summary');
 
@@ -108,7 +108,7 @@ export default function MISVariancePage() {
   const grossMarginPct = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
 
   const vendorBreakdowns = vendors.map(v => {
-    const vSales = sales.filter(s => normalizeVendorId(s.vendor) === normalizeVendorId(v.vendorId));
+    const vSales = filteredSales.filter(s => normalizeVendorId(s.vendor) === normalizeVendorId(v.vendorId));
     let currentRev = 0;
     let currentGainLoss = 0;
 
@@ -142,25 +142,43 @@ export default function MISVariancePage() {
     return drilldownVendor === 'ALL' || sv.includes(drilldownVendor.toLowerCase()) || drilldownVendor.toLowerCase().includes(sv);
   });
 
+  const monthRevenue = { may: 0, june: 0, july: 0, august: 0 };
+  const monthCostGainLoss = { may: 0, june: 0, july: 0, august: 0 };
   const drilldownSummaryMap = {};
+
   drilldownSales.forEach(s => {
     const code = s.itemCode || s.partCode;
     const qty = Number(s.qty || 0);
+    const rev = Number(s.amount || (qty * Number(s.rate || 0)));
+    const sDate = String(s.date || s.invoiceDate || '');
+
     const bp = baselineProducts.find(b => b.itemCode === code && normalizeVendorId(b.vendor) === normalizeVendorId(s.vendor)) || {};
     const det = calculateDetailedCost(bp);
     const appCost = Number(det.approvedBaselineCost || bp.approvedCost || 0);
     const actCost = Number(det.simulatedActualCost || det.finalLanded || appCost);
     const gainLoss = (appCost - actCost) * qty;
 
+    // Strict month routing
+    let m = 'august';
+    if (sDate.includes('-05-') || sDate.startsWith('2026-05')) m = 'may';
+    else if (sDate.includes('-06-') || sDate.startsWith('2026-06')) m = 'june';
+    else if (sDate.includes('-07-') || sDate.startsWith('2026-07')) m = 'july';
+    else if (sDate.includes('-08-') || sDate.startsWith('2026-08')) m = 'august';
+
+    monthRevenue[m] += rev;
+    monthCostGainLoss[m] += gainLoss;
+
     if (!drilldownSummaryMap[code]) {
       drilldownSummaryMap[code] = {
         itemCode: code,
         componentName: s.componentName || bp.componentName || code,
         baseProdObj: bp,
-        gainLoss: 0
+        gainLoss: 0,
+        monthGainLoss: { may: 0, june: 0, july: 0, august: 0 }
       };
     }
     drilldownSummaryMap[code].gainLoss += gainLoss;
+    drilldownSummaryMap[code].monthGainLoss[m] += gainLoss;
   });
 
   const drilldownParts = Object.values(drilldownSummaryMap);
