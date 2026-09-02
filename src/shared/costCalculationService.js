@@ -127,7 +127,7 @@ export function calculateHaierCost(params = {}) {
   // RUNNER RECOVERY CALCULATION:
   // Option 2 (Standard per-piece): (Runner Weight / Cavity) * (RM Rate / 1000) * 50%
   // Option 1 (Total runner): Runner Weight * (RM Rate / 1000) * 50%
-  const isOption1 = params.runnerRecoveryOption === 1;
+  const isOption1 = params.runnerRecoveryOption === 1 || params.runnerRecoveryOption === 'opt1' || params.runnerRecoveryOption === '1';
   const runnerWeightPerPiece = isOption1 ? runnerWeight : (runnerWeight / cavity);
   const runnerRecoveryPct = Number((runnerWeightPerPiece * (rmRate / 1000) * 0.50).toFixed(4));
   

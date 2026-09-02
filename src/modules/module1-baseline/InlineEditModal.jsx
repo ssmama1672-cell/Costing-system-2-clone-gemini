@@ -1008,7 +1008,7 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                             type="radio" 
                             name="runnerRecOpt" 
                             value="opt2"
-                            checked={formData.runnerRecoveryOption !== 'opt1'}
+                            checked={formData.runnerRecoveryOption === 'opt2' || formData.runnerRecoveryOption === 2 || !formData.runnerRecoveryOption}
                             onChange={() => setFormData(prev => ({ ...prev, runnerRecoveryOption: 'opt2' }))}
                             className="w-3 h-3 text-blue-600 focus:ring-0 cursor-pointer"
                           />
@@ -1216,19 +1216,29 @@ export default function InlineEditModal({ product, onClose, onSave, onDelete, re
                   <td className="py-1.5 px-3 font-medium">Freight Cost</td>
                   <td className="py-1.5 px-3 text-center text-slate-600">Rs</td>
                   <td className="py-1.5 px-4 text-right">
-                    {readOnly ? (
-                      <span className="font-bold">{formData.freightCost > 0 ? `₹${Number(formData.freightCost || 0).toFixed(2)}` : '-'}</span>
-                    ) : (
-                      <input type="number" step="0.01" value={formData.freightCost} onChange={e => setFormData({ ...formData, freightCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" />
-                    )}
-                  </td>
+                      {readOnly ? (
+                        <span className="font-bold">{Number(formData.freightCost || 0) > 0 ? `₹${Number(formData.freightCost || 0).toFixed(2)}` : '-'}</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={formData.freightCost} 
+                          onChange={e => setFormData({ ...formData, freightCost: Number(e.target.value) || 0 })} 
+                          className="w-20 px-2 py-0.5 border border-slate-300 rounded text-right font-bold bg-white text-slate-900" 
+                        />
+                      )}</td>
                   <td className="py-1.5 px-4 text-right">
-                    {readOnly ? (
-                      <span className="font-bold text-blue-800">{formData.runningFreightCost > 0 ? `₹${Number(formData.runningFreightCost || 0).toFixed(2)}` : '-'}</span>
-                    ) : (
-                      <input type="number" step="0.01" value={formData.runningFreightCost} onChange={e => setFormData({ ...formData, runningFreightCost: Number(e.target.value) || 0 })} className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" />
-                    )}
-                  </td>
+                      {readOnly ? (
+                        <span className="font-bold text-blue-800">{Number(formData.runningFreightCost || 0) > 0 ? `₹${Number(formData.runningFreightCost || 0).toFixed(2)}` : '-'}</span>
+                      ) : (
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={formData.runningFreightCost} 
+                          onChange={e => setFormData({ ...formData, runningFreightCost: Number(e.target.value) || 0 })} 
+                          className="w-20 px-2 py-0.5 border border-blue-300 rounded text-right font-bold text-blue-800 bg-white" 
+                        />
+                      )}</td>
                   <td className="py-1.5 px-3 text-right font-mono">₹{(Number(formData.freightCost  || 0) - Number( formData.runningFreightCost || 0)).toFixed(2)}</td>
                 </tr>
                 <tr>
