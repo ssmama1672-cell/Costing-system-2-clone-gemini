@@ -83,79 +83,80 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Extract search tokens from selected alternate codes (e.g., 'RM0401', 'SH731', 'RM0018', 'SH03')
-  const tokens = [];
+  // Extract explicit lot codes: e.g. RM0401, RM0018, HIPS SH731, HIPS SH03
+  const targetCodes = [];
   selectedCodesArray.forEach(code => {
     if (!code) return;
     const s = code.toString().trim();
     if (s.toLowerCase().includes('contract baseline')) return;
     
-    // Add raw code
-    tokens.push(s.toLowerCase());
+    // Extract primary identifiers like RM0401, RM0018, etc.
+    const rmMatch = s.match(/RM[0-9A-Za-z_-]+/i);
+    if (rmMatch) targetCodes.push(rmMatch[0].toLowerCase());
     
-    // Extract alphanumeric tokens of length >= 4 (like RM0401, SH731, RM0018, HIPS)
-    const subTokens = s.match(/[A-Za-z0-9_-]{4,}/g) || [];
-    subTokens.forEach(st => {
-      const low = st.toLowerCase();
-      if (!tokens.includes(low)) tokens.push(low);
-    });
+    // Also include normalized main code string
+    targetCodes.push(s.toLowerCase());
   });
 
-  if (tokens.length === 0) {
+  if (targetCodes.length === 0) {
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Match all inward purchase records that contain ANY of the tokens
+  // Filter purchases that match the selected target lots
   const matchedInwards = [];
   purchases.forEach((p, idx) => {
-    const pGrade = (p.grade || '').toLowerCase();
-    const pItem = (p.itemCode || '').toLowerCase();
-    const pRaw = (p.rawMaterial || '').toLowerCase();
-    const pSupp = (p.supplier || '').toLowerCase();
-    const pInv = (p.invoiceNo || '').toLowerCase();
+    const pGrade = (p.grade || '').toLowerCase().trim();
+    const pItem = (p.itemCode || '').toLowerCase().trim();
+    const pInv = (p.invoiceNo || '').toLowerCase().trim();
 
-    const matches = tokens.some(t => 
-      pGrade.includes(t) || pItem.includes(t) || pRaw.includes(t) || pSupp.includes(t) || pInv.includes(t)
-    );
+    const matches = targetCodes.some(t => {
+      if (!t) return false;
+      return pItem === t || pGrade === t || pItem.includes(t) || pGrade.includes(t) || t.includes(pItem) || t.includes(pGrade);
+    });
 
     if (matches) {
-      // Must be on or before periodTo if periodTo is given
       const onOrBefore = !periodTo || !p.date || p.date <= periodTo;
       if (onOrBefore) {
-        matchedInwards.push({ ...p, _uid: `${p.id || idx}_${p.invoiceNo}_${p.itemCode}_${p.date}` });
+        matchedInwards.push({ ...p, _uid: p.id || `${pInv}_${pItem}_${p.date}_${idx}` });
       }
     }
   });
 
-  // If no purchases exist on or before periodTo, and period is June/pre-purchase, return approved price
   if (matchedInwards.length === 0) {
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Sort matched purchases descending by date (most recent first)
-  matchedInwards.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // Deduplicate matched records by unique purchase id/invoice
+  const dedupedMap = new Map();
+  matchedInwards.forEach(p => {
+    const key = `${p.invoiceNo || ''}_${p.itemCode || ''}_${p.grade || ''}_${p.date}_${p.rate}_${p.qty}`;
+    if (!dedupedMap.has(key)) dedupedMap.set(key, p);
+  });
+  const dedupedList = Array.from(dedupedMap.values());
 
-  // Separate current period invoices
-  const currentPeriodInwards = matchedInwards.filter(p => 
+  // Sort descending by date (most recent first)
+  dedupedList.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  // Separate current period purchases
+  const currentPeriodInwards = dedupedList.filter(p => 
     (!periodFrom || !p.date || p.date >= periodFrom) && 
     (!periodTo || !p.date || p.date <= periodTo)
   );
 
-  let lotsToAverage = [];
+  let finalInvoices = [];
   if (currentPeriodInwards.length > 2) {
-    // Condition A: > 2 purchases in current period -> WA of all current period inwards
-    lotsToAverage = currentPeriodInwards;
+    finalInvoices = currentPeriodInwards;
   } else {
-    // Condition B: <= 2 purchases in current period -> FIFO lookback (up to 7 most recent lots on or before periodTo)
-    lotsToAverage = matchedInwards.slice(0, 7);
+    // FIFO 7 lookback: up to 7 most recent inward lots on or before periodTo
+    finalInvoices = dedupedList.slice(0, 7);
   }
 
   let totalQty = 0;
   let totalCost = 0;
 
-  lotsToAverage.forEach(p => {
-    const qty = Number(p.qty || p.quantity || 0);
-    const rate = Number(p.rate || p.netRate || p.price || 0);
+  finalInvoices.forEach(m => {
+    const qty = Number(m.qty || m.quantity || 0);
+    const rate = Number(m.rate || m.netRate || m.price || 0);
     if (qty > 0 && rate > 0) {
       totalQty += qty;
       totalCost += (qty * rate);
@@ -166,7 +167,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return {
       waRate: totalCost / totalQty,
       totalQty,
-      count: lotsToAverage.length
+      count: finalInvoices.length
     };
   }
 
