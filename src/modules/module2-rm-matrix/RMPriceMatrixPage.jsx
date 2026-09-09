@@ -785,7 +785,7 @@ export default function RMPriceMatrixPage() {
                       ? m.selectedAlts 
                       : [m.approvedCode];
                     
-                    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(selectedAlts, m.approvedCode, m.approvedPrice, selectedVendor);
+                    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(selectedAlts, m.approvedCode, m.approvedPrice, selectedVendor, periodFrom, periodTo);
 
                     return (
                       <tr key={m.id} className="hover:bg-slate-50 transition font-medium">

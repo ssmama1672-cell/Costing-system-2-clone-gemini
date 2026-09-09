@@ -76,15 +76,15 @@ export function parseMaterialString(rawMaterialStr) {
 }
 
 // Compute Combined Weighted Average AND Total Inward Quantity
-export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
+export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier', periodFrom = '', periodTo = '') {
   const purchases = globalStore.purchases || [];
   
   if (!Array.isArray(selectedCodesArray) || selectedCodesArray.length === 0) {
     return { waRate: Number(approvedPrice || 0), totalQty: 0 };
   }
 
-  let totalQty = 0;
-  let totalCost = 0;
+  // Filter matched purchases for selected codes on or before periodTo
+  let candidatePurchases = [];
 
   selectedCodesArray.forEach(code => {
     if (!code) return;
@@ -92,34 +92,66 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     const isBaseline = cClean === (approvedCode || '').toLowerCase().trim() || cClean.includes('contract baseline');
 
     if (!isBaseline) {
-      // Inward lots are enterprise-wide; match by grade/code across all inward lots
-      const matching = purchases.filter(p => {
+      const matched = purchases.filter(p => {
         const pGrade = (p.grade || p.itemCode || p.rawMaterial || p.supplier || '').toString().toLowerCase().trim();
-        return pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
+        const matchesCode = pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
+        const onOrBefore = !periodTo || !p.date || p.date <= periodTo;
+        return matchesCode && onOrBefore;
       });
+      candidatePurchases.push(...matched);
+    }
+  });
 
-      matching.forEach(m => {
-        const qty = Number(m.qty || m.quantity || 0);
-        const rate = Number(m.rate || m.netRate || m.price || 0);
-        if (qty > 0 && rate > 0) {
-          totalQty += qty;
-          totalCost += (qty * rate);
-        }
-      });
+  // Deduplicate candidates by unique invoice/item/date
+  const uniqueCandidateMap = new Map();
+  candidatePurchases.forEach(p => {
+    const key = `${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${p.date}_${p.rate}_${p.qty}`;
+    if (!uniqueCandidateMap.has(key)) uniqueCandidateMap.set(key, p);
+  });
+  const allEligible = Array.from(uniqueCandidateMap.values());
+
+  if (allEligible.length === 0) {
+    return { waRate: Number(approvedPrice || 0), totalQty: 0 };
+  }
+
+  // Sort descending by date (most recent first)
+  allEligible.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  // Separate current period invoices
+  const currentPeriodInvoices = allEligible.filter(p => (!periodFrom || p.date >= periodFrom) && (!periodTo || p.date <= periodTo));
+
+  let finalInvoicesToAverage = [];
+
+  if (currentPeriodInvoices.length > 2) {
+    // Condition A: Greater than 2 purchases in current period -> Actual WA of all current period invoices
+    finalInvoicesToAverage = currentPeriodInvoices;
+  } else {
+    // Condition B: <= 2 purchases in current period -> FIFO Lookback: take up to 7 most recent invoices
+    finalInvoicesToAverage = allEligible.slice(0, 7);
+  }
+
+  let totalQty = 0;
+  let totalCost = 0;
+
+  finalInvoicesToAverage.forEach(m => {
+    const qty = Number(m.qty || m.quantity || 0);
+    const rate = Number(m.rate || m.netRate || m.price || 0);
+    if (qty > 0 && rate > 0) {
+      totalQty += qty;
+      totalCost += (qty * rate);
     }
   });
 
   if (totalQty > 0) {
     return {
       waRate: totalCost / totalQty,
-      totalQty
+      totalQty,
+      sampleSize: finalInvoicesToAverage.length,
+      mode: currentPeriodInvoices.length > 2 ? 'CURRENT_PERIOD_FULL' : 'FIFO_ROLLING_7'
     };
   }
 
-  return {
-    waRate: Number(approvedPrice || 0),
-    totalQty: 0
-  };
+  return { waRate: Number(approvedPrice || 0), totalQty: 0 };
 };
 
 export function computeCombinedWeightedAverage(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
@@ -924,7 +956,7 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
   );
   if (exact) {
     const selectedAlts = exact.selectedAlts || [exact.materialCode];
-    const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, exact.materialCode, exact.approvedPrice, vendor);
+    const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, exact.materialCode, exact.approvedPrice, vendor, periodFrom, periodTo);
     return {
       approvedPrice: Number(exact.approvedPrice || 0),
       activeWaPrice: Number(exact.activeWaPrice || waRate || exact.approvedPrice || 0),
@@ -940,7 +972,7 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
   if (matches.length > 0) {
     matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
     const selectedAlts = matches[0].selectedAlts || [matches[0].materialCode];
-    const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, matches[0].materialCode, matches[0].approvedPrice, vendor);
+    const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, matches[0].materialCode, matches[0].approvedPrice, vendor, periodFrom, periodTo);
     return {
       approvedPrice: Number(matches[0].approvedPrice || 0),
       activeWaPrice: Number(matches[0].activeWaPrice || waRate || matches[0].approvedPrice || 0),
@@ -950,7 +982,7 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
 
   const activeMap = getActiveRmMapping(materialCode, vendor);
   const selectedAlts = Array.isArray(activeMap.selectedAlts) && activeMap.selectedAlts.length > 0 ? activeMap.selectedAlts : [activeMap.approvedCode];
-  const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, activeMap.approvedCode, activeMap.approvedPrice, vendor);
+  const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, activeMap.approvedCode, activeMap.approvedPrice, vendor, periodFrom, periodTo);
   return {
     ...activeMap,
     activeWaPrice: Number(waRate || activeMap.activeWaPrice || activeMap.approvedPrice || 0)
@@ -978,7 +1010,7 @@ export function snapshotProductsForPeriod({ vendor, periodFrom, periodTo, calcul
       let actRmWaPrice = appRmPrice;
       if (matchedRm) {
         const alts = Array.isArray(matchedRm.selectedAlts) && matchedRm.selectedAlts.length > 0 ? matchedRm.selectedAlts : [matchedRm.approvedCode];
-        const { waRate } = computeCombinedWeightedAverageWithQty(alts, matchedRm.approvedCode, matchedRm.approvedPrice, vendor);
+        const { waRate } = computeCombinedWeightedAverageWithQty(alts, matchedRm.approvedCode, matchedRm.approvedPrice, vendor, periodFrom, periodTo);
         actRmWaPrice = Number(waRate || matchedRm.activeWaPrice || appRmPrice);
       }
 
@@ -986,7 +1018,7 @@ export function snapshotProductsForPeriod({ vendor, periodFrom, periodTo, calcul
       let actMbWaPrice = appMbPrice;
       if (matchedMb) {
         const alts = Array.isArray(matchedMb.selectedAlts) && matchedMb.selectedAlts.length > 0 ? matchedMb.selectedAlts : [matchedMb.approvedCode];
-        const { waRate } = computeCombinedWeightedAverageWithQty(alts, matchedMb.approvedCode, matchedMb.approvedPrice, vendor);
+        const { waRate } = computeCombinedWeightedAverageWithQty(alts, matchedMb.approvedCode, matchedMb.approvedPrice, vendor, periodFrom, periodTo);
         actMbWaPrice = Number(waRate || matchedMb.activeMbWaPrice || appMbPrice);
       }
 
