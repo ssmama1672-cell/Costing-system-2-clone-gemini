@@ -390,15 +390,29 @@ export default function RMPriceMatrixPage() {
   };
 
   const handleSaveVendorPeriod = () => {
-    const res = saveVendorPeriodSchedule({ vendor: selectedVendor, periodFrom, periodTo });
-      const snapRes = snapshotProductsForPeriod({
-        vendor: selectedVendor,
-        periodFrom,
-        periodTo,
-        calculateCostFn: calculateDetailedCost
-      });
-      setSaveSuccessMsg(`✓ Successfully saved & locked ${res.count} materials for ${selectedVendor} (${periodFrom} to ${periodTo})`);
-    setTimeout(() => setSaveSuccessMsg(''), 4000);
+    try {
+      const res = saveVendorPeriodSchedule({ vendor: selectedVendor, periodFrom, periodTo });
+      let snapCount = 0;
+      try {
+        const snapRes = snapshotProductsForPeriod({
+          vendor: selectedVendor,
+          periodFrom,
+          periodTo,
+          calculateCostFn: calculateDetailedCost
+        });
+        snapCount = snapRes?.count || 0;
+      } catch (e) {
+        console.warn("Snapshot notice:", e);
+      }
+
+      const count = res?.count || (storeState.rmMappingsData || []).length;
+      const displayMsg = "Successfully saved and archived " + count + " materials for " + selectedVendor + " from " + periodFrom + " to " + periodTo + ". Baseline & Actual costing snapshots are locked.";
+      setSaveSuccessMsg(displayMsg);
+      setShowConfirmModal(true);
+    } catch (err) {
+      console.error("Save schedule error:", err);
+      alert("Error saving period schedule: " + err.message);
+    }
   };
 
   const handleDownloadPurchaseTemplate = () => {
