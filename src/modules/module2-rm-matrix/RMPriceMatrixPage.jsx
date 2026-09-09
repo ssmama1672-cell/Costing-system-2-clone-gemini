@@ -19,8 +19,7 @@ function parseSafeDate(raw) {
 }
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Lock, 
+import { Lock, 
   Unlock, 
   Upload, 
   Download, 
@@ -57,8 +56,7 @@ import {
   computeGradeWeightedAverage,
   computeCombinedWeightedAverageWithQty,
   normalizeVendorId,
-  isInvalidMaterialCode
-} from '../../shared/masterStore';
+  isInvalidMaterialCode, getPreviousPeriodRmPrice } from '../../shared/masterStore';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
 // Searchable Multi-Select Component with QTY drilldown button
@@ -239,6 +237,7 @@ export default function RMPriceMatrixPage() {
   const [viewingUsageMat, setViewingUsageMat] = useState(null);
   const [viewingProductSpec, setViewingProductSpec] = useState(null);
   const [viewingPurchaseGrade, setViewingPurchaseGrade] = useState(null);
+  const [stagingData, setStagingData] = useState(null); // { type: 'purchase' | 'sales', unique: [], duplicates: [] }
 
   const [isGlobalLocked, setIsGlobalLocked] = useState(true);
   const [isMatrixLocked, setIsMatrixLocked] = useState(true);
@@ -326,6 +325,19 @@ export default function RMPriceMatrixPage() {
     const next = !isGlobalLocked;
     setIsGlobalLocked(next);
     toggleGlobalLock();
+  };
+
+  
+  const handleCommitStaging = () => {
+    if (!stagingData) return;
+    if (stagingData.type === 'purchase') {
+      stagingData.unique.forEach(r => addDayWisePurchase(r));
+    } else if (stagingData.type === 'sales') {
+      stagingData.unique.forEach(r => addDayWiseSales(r));
+    }
+    setSaveSuccessMsg(`✓ Staging Committed: Added ${stagingData.unique.length} unique records (${stagingData.duplicates.length} duplicates skipped)`);
+    setStagingData(null);
+    setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
 
   const handleToggleMatrixLock = () => {
@@ -428,21 +440,56 @@ export default function RMPriceMatrixPage() {
       const wb = XLSX.read(bstr, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws);
+
+      const existingKeys = new Set(
+        (storeState.purchases || []).map(p => 
+          `${normalizeVendorId(p.vendor)}_${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${(p.supplier || p.supplierName || '').trim()}_${p.date}`
+        )
+      );
+
+      const uniqueRows = [];
+      const duplicateRows = [];
+
       data.forEach(d => {
-        addDayWisePurchase({
-          date: parseSafeDate(d["Date (YYYY-MM-DD)"] || d["Date"] || d.Date || d.date),
-          supplier: d["Supplier Name"] || d.Supplier || d.supplier || '',
-          invoiceNo: d["Invoice Number"] || d.Invoice || d.invoiceNo || '',
-          itemCode: d["Item Code"] || d.itemCode || '',
-          grade: d["Grade Description"] || d.Grade || d.grade || '',
-          qty: parseFloat(d["Quantity (Kg)"] || d.Quantity || d.qty || 0),
-          rate: parseFloat(d["Purchase Rate (₹/Kg)"] || d.Rate || d.rate || 0),
+        const itemCode = String(d["Item Code"] || d.itemCode || '').trim();
+        const grade = String(d["Grade Description"] || d.Grade || d.grade || itemCode).trim();
+        const invoiceNo = String(d["Invoice Number"] || d.Invoice || d.invoiceNo || '').trim();
+        const supplier = String(d["Supplier Name"] || d.Supplier || d.supplier || '').trim();
+        const rawDate = d["Date (YYYY-MM-DD)"] || d["Date"] || d.Date || d.date;
+        const parsedDate = parseSafeDate(rawDate);
+        const qty = parseFloat(d["Quantity (Kg)"] || d.Quantity || d.qty || 0);
+        const rate = parseFloat(d["Purchase Rate (₹/Kg)"] || d.Rate || d.rate || 0);
+
+        const key = `${normalizeVendorId(selectedVendor)}_${invoiceNo}_${itemCode || grade}_${supplier}_${parsedDate}`;
+
+        const record = {
+          date: parsedDate,
+          supplier: supplier,
+          invoiceNo: invoiceNo,
+          itemCode: itemCode,
+          grade: grade,
+          qty: qty,
+          rate: rate,
           vendor: selectedVendor
-        });
+        };
+
+        if (existingKeys.has(key)) {
+          duplicateRows.push({ ...record, duplicateKey: key });
+        } else {
+          existingKeys.add(key);
+          uniqueRows.push(record);
+        }
       });
-      alert(`Imported ${data.length} purchase inward records for ${selectedVendor}!`);
+
+      setStagingData({
+        type: 'purchase',
+        vendor: selectedVendor,
+        unique: uniqueRows,
+        duplicates: duplicateRows
+      });
     };
     reader.readAsBinaryString(file);
+    e.target.value = '';
   };
 
   const handleSalesBulkUpload = (e) => {
@@ -459,8 +506,8 @@ export default function RMPriceMatrixPage() {
         (storeState.sales || []).map(s => `${normalizeVendorId(s.vendor)}_${(s.invoiceNo || '').trim()}_${(s.itemCode || '').trim()}_${s.date}`)
       );
 
-      let addedCount = 0;
-      let duplicateCount = 0;
+      const uniqueRows = [];
+      const duplicateRows = [];
 
       data.forEach(d => {
         const itemCode = String(d["Item Code"] || d.itemCode || '').trim();
@@ -472,27 +519,34 @@ export default function RMPriceMatrixPage() {
 
         const rowKey = `${normalizeVendorId(selectedVendor)}_${invoiceNo}_${itemCode}_${parsedDate}`;
 
+        const record = {
+          date: parsedDate,
+          vendor: selectedVendor,
+          itemCode: itemCode,
+          invoiceNo: invoiceNo,
+          componentName: d["Component Name"] || d.componentName || '',
+          qty: qty,
+          rate: rate,
+          amount: qty * rate
+        };
+
         if (existingKeys.has(rowKey)) {
-          duplicateCount++;
+          duplicateRows.push({ ...record, duplicateKey: rowKey });
         } else {
           existingKeys.add(rowKey);
-          addedCount++;
-          addDayWiseSales({
-            date: parsedDate,
-            vendor: selectedVendor,
-            itemCode: itemCode,
-            invoiceNo: invoiceNo,
-            componentName: d["Component Name"] || d.componentName || '',
-            qty: qty,
-            rate: rate,
-            amount: qty * rate
-          });
+          uniqueRows.push(record);
         }
       });
-      alert(`Upload Staging Summary for ${selectedVendor}:\n\n✅ ${addedCount} Unique Records Added\n⚠️ ${duplicateCount} Duplicate Records Skipped`);
+
+      setStagingData({
+        type: 'sales',
+        vendor: selectedVendor,
+        unique: uniqueRows,
+        duplicates: duplicateRows
+      });
     };
     reader.readAsBinaryString(file);
-    e.target.value = "";
+    e.target.value = '';
   };
 
   const handleAddPurchase = (e) => {
@@ -701,7 +755,8 @@ export default function RMPriceMatrixPage() {
               <thead className="bg-slate-900 text-white uppercase font-bold text-[10px]">
                 <tr>
                   <th className="py-3 px-4 w-72">APPROVED RM/MB CODE & USAGE</th>
-                  <th className="py-3 px-4 text-center w-36">APPROVED PRICE (₹/KG)</th>
+                  <th className="py-3 px-4 text-center w-32 bg-slate-800 text-slate-300">PREV APPROVED (₹/KG)</th>
+   <th className="py-3 px-4 text-center w-36">APPROVED PRICE (₹/KG)</th>
                   <th className="py-3 px-4">SEARCHABLE ALTERNATE RM LOTS (WITH INWARD QTY DRILLDOWN)</th>
                   <th className="py-3 px-4 text-center w-48 text-amber-300">COMBINED WA PRICE (₹/KG)</th>
                   <th className="py-3 px-3 text-center w-20">ACTION</th>
@@ -1294,7 +1349,70 @@ export default function RMPriceMatrixPage() {
         </div>
       )}
 
-      {/* READ-ONLY SPECIFICATION MODAL (DRILLDOWN FROM PART CODE) */}
+      
+        {/* INTERACTIVE STAGING & DUPLICATE REVIEW MODAL */}
+        {stagingData && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-300 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
+              <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-blue-400" />
+                  <h3 className="font-bold text-sm">
+                    Staging Review: {stagingData.type === 'purchase' ? 'Purchase Inward Import' : 'Sales Dispatch Import'} ({stagingData.vendor})
+                  </h3>
+                </div>
+                <button onClick={() => setStagingData(null)} className="text-slate-400 hover:text-white font-bold text-lg">&times;</button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900">
+                    <span className="text-[11px] font-bold uppercase tracking-wider block">Ready to Import (Unique)</span>
+                    <span className="text-2xl font-black">{stagingData.unique.length}</span>
+                    <span className="text-xs block text-emerald-700 font-medium mt-0.5">New verified records with valid keys</span>
+                  </div>
+
+                  <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-amber-900">
+                    <span className="text-[11px] font-bold uppercase tracking-wider block">Skipped (Duplicates Found)</span>
+                    <span className="text-2xl font-black">{stagingData.duplicates.length}</span>
+                    <span className="text-xs block text-amber-700 font-medium mt-0.5">Records already existing for this date/invoice/part</span>
+                  </div>
+                </div>
+
+                {stagingData.duplicates.length > 0 && (
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
+                    <div className="font-bold text-slate-700 mb-1">Duplicate Sample (First 3 Skipped Records):</div>
+                    <ul className="space-y-1 font-mono text-[11px] text-slate-600">
+                      {stagingData.duplicates.slice(0, 3).map((d, i) => (
+                        <li key={i} className="truncate">
+                          ⚠️ {d.date} | Inv: {d.invoiceNo || 'N/A'} | Part: {d.itemCode || d.grade} | Qty: {d.qty}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-100 border-t border-slate-200 flex justify-end gap-2">
+                <button
+                  onClick={() => setStagingData(null)}
+                  className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+                >
+                  Cancel Upload
+                </button>
+                <button
+                  onClick={handleCommitStaging}
+                  disabled={stagingData.unique.length === 0}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-bold rounded-xl text-xs shadow cursor-pointer transition active:scale-95"
+                >
+                  Confirm & Commit {stagingData.unique.length} Records
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* READ-ONLY SPECIFICATION MODAL (DRILLDOWN FROM PART CODE) */}
       {viewingProductSpec && (
         <InlineEditModal
           product={viewingProductSpec}

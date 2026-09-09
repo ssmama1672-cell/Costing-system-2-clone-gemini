@@ -543,84 +543,45 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
   if (!globalStore.vendorSchedules) globalStore.vendorSchedules = {};
   const vNorm = normalizeVendorId(vendor);
 
-  // Archive immutable rate snapshot for RMcode + Vendor + Period
+  // Archive locally and generate composite records
   (globalStore.rmMappingsData || []).forEach(r => {
     if (normalizeVendorId(r.vendor) === vNorm) {
       const historyKey = `${r.approvedCode}_${vNorm}_${periodFrom}_${periodTo}`;
-      const exists = globalStore.rmPriceHistory.some(h => h.historyKey === historyKey);
-      if (!exists) {
-        globalStore.rmPriceHistory.push({
-          historyKey,
-          materialCode: r.approvedCode,
-          type: r.type,
-          vendor: r.vendor,
+      const existingIdx = globalStore.rmPriceHistory.findIndex(h => h.historyKey === historyKey);
+      const snapshot = {
+        historyKey,
+        materialCode: r.approvedCode,
+        type: r.type,
+        vendor: r.vendor,
+        periodFrom,
+        periodTo,
+        approvedPrice: r.approvedPrice,
+        activeWaPrice: r.activeWaPrice || r.approvedPrice,
+        selectedAlts: r.selectedAlts || [r.approvedCode],
+        archivedAt: new Date().toISOString()
+      };
+      if (existingIdx >= 0) {
+        globalStore.rmPriceHistory[existingIdx] = snapshot;
+      } else {
+        globalStore.rmPriceHistory.push(snapshot);
+      }
+    }
+  });
+
+  // Persist each to Supabase directly
+  try {
+    (globalStore.rmMappingsData || []).forEach(r => {
+      if (normalizeVendorId(r.vendor) === vNorm) {
+        saveRmMappingToSupabase({
+          ...r,
+          vendor,
           periodFrom,
-          periodTo,
-          approvedPrice: r.approvedPrice,
-          activeWaPrice: r.activeWaPrice || r.approvedPrice,
-          archivedAt: new Date().toISOString()
+          periodTo
         });
       }
-    }
-  });
-
-  globalStore.vendorSchedules[vendor] = {
-    periodFrom,
-    periodTo,
-    savedAt: new Date().toISOString()
-  };
-
-  (globalStore.rmMappingsData || []).forEach(r => {
-    if (normalizeVendorId(r.vendor) === vNorm) {
-      r.periodFrom = periodFrom;
-      r.periodTo = periodTo;
-    }
-  });
-
-  const vendorMaterials = (globalStore.rmMappingsData || []).filter(r => 
-    normalizeVendorId(r.vendor) === vNorm
-  );
-
-  (globalStore.baselineProducts || []).forEach(prod => {
-    if (normalizeVendorId(prod.vendor) === vNorm) {
-      const cleanRm = sanitizeMaterialName(prod.approvedRm || prod.baseRm, prod.componentName, prod.itemCode, prod.vendor);
-      const { baseRm, mbGrade } = parseMaterialString(cleanRm);
-      const matchedRm = vendorMaterials.find(m => m.type === 'RM' && m.approvedCode.toLowerCase().trim() === (baseRm || '').toLowerCase().trim());
-      const matchedMb = vendorMaterials.find(m => m.type === 'MB' && m.approvedCode.toLowerCase().trim() === (mbGrade || '').toLowerCase().trim());
-
-      if (matchedRm) {
-        const selectedAlts = matchedRm.selectedAlts || [matchedRm.approvedCode];
-        const waPrice = computeCombinedWeightedAverage(selectedAlts, matchedRm.approvedCode, matchedRm.approvedPrice, vendor);
-        prod.approvedRmPrice = Number(matchedRm.approvedPrice || prod.approvedRmPrice || 0);
-        prod.activeRmWaPrice = Number(waPrice || matchedRm.approvedPrice);
-      }
-      if (matchedMb) {
-        const selectedAlts = matchedMb.selectedAlts || [matchedMb.approvedCode];
-        const waPrice = computeCombinedWeightedAverage(selectedAlts, matchedMb.approvedCode, matchedMb.approvedPrice, vendor);
-        prod.approvedMbPrice = Number(matchedMb.approvedPrice || prod.approvedMbPrice || 0);
-        prod.activeMbWaPrice = Number(waPrice || matchedMb.approvedPrice);
-      }
-    }
-  });
-
-  addAuditLog({
-    partCode: 'RM_MATRIX',
-    componentName: `Saved Matrix Schedule for ${vendor}`,
-    vendor: vendor,
-    modifications: `Period: ${periodFrom} to ${periodTo} • ${vendorMaterials.length} Materials Saved`,
-    costImpact: 'Matrix Synced',
-    reason: 'Save for Vendor + Period'
-  });
-
-  notifyStore();
-
-  if (supabase) {
-    supabase.from('vendor_schedules').upsert({
-      vendor_id: vendor,
-      period_from: periodFrom,
-      period_to: periodTo,
-      saved_at: new Date().toISOString()
-    }, { onConflict: 'vendor_id,period_from,period_to' }).then(null, console.error);
+    });
+  } catch (e) {
+    console.warn('Supabase save notice:', e);
   }
 
   return { success: true, count: vendorMaterials.length };
@@ -873,3 +834,22 @@ export function addDayWiseSales(rec) {
 }
 
 export function onboardVendorWithBlueprint() { notifyStore(); }
+
+
+export function getPreviousPeriodRmPrice(approvedCode, vendor, currentPeriodFrom) {
+  const vNorm = normalizeVendorId(vendor);
+  const codeClean = (approvedCode || '').toLowerCase().trim();
+  const history = globalStore.rmPriceHistory || [];
+
+  // Find most recent rate for this material and vendor that predates current period
+  const matches = history.filter(h => 
+    normalizeVendorId(h.vendor) === vNorm && 
+    (h.materialCode || '').toLowerCase().trim() === codeClean &&
+    (!currentPeriodFrom || (h.periodTo && h.periodTo < currentPeriodFrom))
+  );
+
+  if (matches.length === 0) return null;
+  // Return the rate with the latest periodTo
+  matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
+  return Number(matches[0].approvedPrice || 0);
+}
