@@ -587,7 +587,7 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
       const historyKey = `${r.approvedCode}_${vNorm}_${periodFrom}_${periodTo}`;
       const existingIdx = globalStore.rmPriceHistory.findIndex(h => h.historyKey === historyKey);
       const selectedAlts = Array.isArray(r.selectedAlts) && r.selectedAlts.length > 0 ? r.selectedAlts : [r.approvedCode];
-      const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, r.approvedCode, r.approvedPrice, vendor);
+      const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, r.approvedCode, r.approvedPrice, vendor, periodFrom, periodTo);
       const resolvedWa = Number(waRate || r.activeWaPrice || r.approvedPrice || 0);
       r.activeWaPrice = resolvedWa; // save back to mapping object
 
@@ -627,7 +627,7 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
     console.warn('Supabase save notice:', e);
   }
 
-  return { success: true, count: vendorMaterials.length };
+  return { success: true, count: (globalStore.rmMappingsData || []).length };
 }
 
 export function getVendorBaselineData(vendorId) {
