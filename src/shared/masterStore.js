@@ -78,7 +78,6 @@ export function parseMaterialString(rawMaterialStr) {
 // Compute Combined Weighted Average AND Total Inward Quantity
 export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
   const purchases = globalStore.purchases || [];
-  const vNorm = normalizeVendorId(vendor);
   
   if (!Array.isArray(selectedCodesArray) || selectedCodesArray.length === 0) {
     return { waRate: Number(approvedPrice || 0), totalQty: 0 };
@@ -93,12 +92,10 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     const isBaseline = cClean === (approvedCode || '').toLowerCase().trim() || cClean.includes('contract baseline');
 
     if (!isBaseline) {
+      // Inward lots are enterprise-wide; match by grade/code across all inward lots
       const matching = purchases.filter(p => {
         const pGrade = (p.grade || p.itemCode || p.rawMaterial || p.supplier || '').toString().toLowerCase().trim();
-        const pNorm = normalizeVendorId(p.vendor);
-        const matchGrade = pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
-        const matchVendor = !vendor || vNorm === 'all' || pNorm === vNorm;
-        return matchGrade && matchVendor;
+        return pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
       });
 
       matching.forEach(m => {
@@ -112,9 +109,18 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     }
   });
 
-  const waRate = totalQty > 0 ? Number((totalCost / totalQty).toFixed(2)) : Number(approvedPrice || 0);
-  return { waRate, totalQty };
-}
+  if (totalQty > 0) {
+    return {
+      waRate: totalCost / totalQty,
+      totalQty
+    };
+  }
+
+  return {
+    waRate: Number(approvedPrice || 0),
+    totalQty: 0
+  };
+};
 
 export function computeCombinedWeightedAverage(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
   return computeCombinedWeightedAverageWithQty(selectedCodesArray, approvedCode, approvedPrice, vendor).waRate;

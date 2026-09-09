@@ -441,9 +441,10 @@ export default function RMPriceMatrixPage() {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws);
 
+      // Enterprise-wide lot key: invoiceNo + itemCode/grade + supplier + date
       const existingKeys = new Set(
         (storeState.purchases || []).map(p => 
-          `${normalizeVendorId(p.vendor)}_${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${(p.supplier || p.supplierName || '').trim()}_${p.date}`
+          `${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${(p.supplier || p.supplierName || '').trim()}_${p.date}`
         )
       );
 
@@ -459,8 +460,9 @@ export default function RMPriceMatrixPage() {
         const parsedDate = parseSafeDate(rawDate);
         const qty = parseFloat(d["Quantity (Kg)"] || d.Quantity || d.qty || 0);
         const rate = parseFloat(d["Purchase Rate (₹/Kg)"] || d.Rate || d.rate || 0);
+        const rowVendor = d["Vendor"] || d.vendor || 'ALL_VENDORS';
 
-        const key = `${normalizeVendorId(selectedVendor)}_${invoiceNo}_${itemCode || grade}_${supplier}_${parsedDate}`;
+        const key = `${invoiceNo}_${itemCode || grade}_${supplier}_${parsedDate}`;
 
         const record = {
           date: parsedDate,
@@ -470,7 +472,7 @@ export default function RMPriceMatrixPage() {
           grade: grade,
           qty: qty,
           rate: rate,
-          vendor: selectedVendor
+          vendor: rowVendor
         };
 
         if (existingKeys.has(key)) {
@@ -483,7 +485,7 @@ export default function RMPriceMatrixPage() {
 
       setStagingData({
         type: 'purchase',
-        vendor: selectedVendor,
+        vendor: 'All Vendors (Global Registry)',
         unique: uniqueRows,
         duplicates: duplicateRows
       });
@@ -510,6 +512,7 @@ export default function RMPriceMatrixPage() {
       const duplicateRows = [];
 
       data.forEach(d => {
+        const rowVendor = d["Vendor"] || d.Vendor || d.vendor || selectedVendor;
         const itemCode = String(d["Item Code"] || d.itemCode || '').trim();
         const invoiceNo = String(d["Invoice Number"] || d.Invoice || d.invoiceNo || '').trim();
         const rawDate = d["Dispatch Date (YYYY-MM-DD)"] || d["Date"] || d.Date || d.date;
@@ -517,11 +520,11 @@ export default function RMPriceMatrixPage() {
         const qty = parseFloat(d["Dispatch Qty (Nos)"] || d.Quantity || d.qty || 0);
         const rate = parseFloat(d["Selling Price (₹/Pc)"] || d.Rate || d.sellingPrice || 0);
 
-        const rowKey = `${normalizeVendorId(selectedVendor)}_${invoiceNo}_${itemCode}_${parsedDate}`;
+        const rowKey = `${normalizeVendorId(rowVendor)}_${invoiceNo}_${itemCode}_${parsedDate}`;
 
         const record = {
           date: parsedDate,
-          vendor: selectedVendor,
+          vendor: rowVendor,
           itemCode: itemCode,
           invoiceNo: invoiceNo,
           componentName: d["Component Name"] || d.componentName || '',
@@ -540,7 +543,7 @@ export default function RMPriceMatrixPage() {
 
       setStagingData({
         type: 'sales',
-        vendor: selectedVendor,
+        vendor: 'Multi-Vendor Sales Dispatch',
         unique: uniqueRows,
         duplicates: duplicateRows
       });
@@ -765,7 +768,7 @@ export default function RMPriceMatrixPage() {
               <tbody className="divide-y divide-slate-200">
                 {vendorMaterials.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-slate-500 font-bold">
+                    <td colSpan={6} className="py-12 text-center text-slate-500 font-bold">
                       No material codes mapped specifically for {selectedVendor}. Upload a baseline sheet in <b>1. Baseline Master</b> to auto-register grades.
                     </td>
                   </tr>
@@ -808,7 +811,21 @@ export default function RMPriceMatrixPage() {
                           </div>
                         </td>
 
-                        {/* 2. Approved Price */}
+                          {/* 2. Previous Period Approved Rate */}
+                          <td className="py-3 px-4 text-center bg-slate-50/70 border-x border-slate-100">
+                            {(() => {
+                              const prevPrice = getPreviousPeriodRmPrice(m.approvedCode, selectedVendor, periodFrom);
+                              return prevPrice !== null ? (
+                                <span className="inline-block font-mono font-bold text-slate-700 bg-slate-200 px-2.5 py-1 rounded text-xs">
+                                  ₹{Number(prevPrice).toFixed(2)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-mono text-xs italic">-</span>
+                              );
+                            })()}
+                          </td>
+
+                          {/* 3. Approved Price */}
                         <td className="py-3 px-4 text-center">
                           <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-2xs">
                             <span className="text-amber-950 font-bold mr-1">₹</span>
@@ -1310,7 +1327,7 @@ export default function RMPriceMatrixPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {matchingPurchases.length === 0 ? (
-                    <tr><td colSpan={5} className="py-6 text-center text-slate-400 italic">No purchase batches recorded for this grade.</td></tr>
+                    <tr><td colSpan={6} className="py-6 text-center text-slate-400 italic">No purchase batches recorded for this grade.</td></tr>
                   ) : (
                     matchingPurchases.map((p, idx) => (
                       <tr key={idx} className="hover:bg-slate-50 font-medium">
