@@ -89,7 +89,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   selectedCodesArray.forEach(code => {
     if (!code) return;
     const cClean = code.toString().toLowerCase().trim();
-    const isBaseline = cClean === (approvedCode || '').toLowerCase().trim() || cClean.includes('contract baseline');
+    const isBaseline = cClean.includes('contract baseline');
 
     if (!isBaseline) {
       const matched = purchases.filter(p => {
@@ -1063,4 +1063,33 @@ export function snapshotProductsForPeriod({ vendor, periodFrom, periodTo, calcul
 
   notifySubscribers();
   return snapCount;
+}
+
+
+export function getHistoricalRmRecord(approvedCode, vendor, periodFrom, periodTo) {
+  const history = globalStore.rmPriceHistory || [];
+  const vNorm = normalizeVendorId(vendor);
+  const codeClean = (approvedCode || '').toLowerCase().trim();
+
+  // 1. Exact match for this period
+  const exact = history.find(h =>
+    normalizeVendorId(h.vendor) === vNorm &&
+    (h.materialCode || '').toLowerCase().trim() === codeClean &&
+    h.periodFrom === periodFrom &&
+    h.periodTo === periodTo
+  );
+  if (exact) return exact;
+
+  // 2. Overlapping or closest preceding saved period
+  const matches = history.filter(h =>
+    normalizeVendorId(h.vendor) === vNorm &&
+    (h.materialCode || '').toLowerCase().trim() === codeClean &&
+    (!periodTo || (h.periodTo && h.periodTo <= periodTo))
+  );
+  if (matches.length > 0) {
+    matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
+    return matches[0];
+  }
+
+  return null;
 }

@@ -56,7 +56,7 @@ import {
   computeGradeWeightedAverage,
   computeCombinedWeightedAverageWithQty,
   normalizeVendorId,
-  isInvalidMaterialCode, getPreviousPeriodRmPrice, savePeriodProductCostSnapshot, getPeriodProductCost, snapshotProductsForPeriod } from '../../shared/masterStore';
+  isInvalidMaterialCode, getPreviousPeriodRmPrice, savePeriodProductCostSnapshot, getPeriodProductCost, snapshotProductsForPeriod, getHistoricalRmRecord } from '../../shared/masterStore';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
 // Searchable Multi-Select Component with QTY drilldown button
@@ -839,8 +839,8 @@ export default function RMPriceMatrixPage() {
                               type="number"
                               step="0.01"
                               disabled={isRowDisabled}
-                              value={m.approvedPrice || ''}
-                              onChange={(e) => handleApprovedPriceChange(m.id, e.target.value)}
+                              value={currentApprovedPrice || ''}
+                              onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
                               className="w-16 bg-transparent font-black text-amber-950 text-center outline-hidden"
                             />
                           </div>
