@@ -795,12 +795,26 @@ export default function RMPriceMatrixPage() {
                   </tr>
                 ) : (
                   vendorMaterials.map(m => {
-                    const usingProds = getProductsUsingMaterial(m.approvedCode, selectedVendor);
-                    const selectedAlts = Array.isArray(m.selectedAlts) && m.selectedAlts.length > 0 
-                      ? m.selectedAlts 
-                      : [m.approvedCode];
-                    
-                    const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(selectedAlts, m.approvedCode, m.approvedPrice, selectedVendor, periodFrom, periodTo);
+                      const usingProds = getProductsUsingMaterial(m.approvedCode, selectedVendor);
+                      const periodRecord = getHistoricalRmRecord(m.approvedCode, selectedVendor, periodFrom, periodTo);
+                      
+                      // For this period: use exact period snapshot price, or base mapping price
+                      const currentApprovedPrice = (periodRecord && periodRecord.approvedPrice !== undefined && periodRecord.periodFrom === periodFrom)
+                        ? periodRecord.approvedPrice
+                        : (periodRecord && periodRecord.approvedPrice !== undefined ? periodRecord.approvedPrice : m.approvedPrice);
+
+                      const selectedAlts = (periodRecord && Array.isArray(periodRecord.selectedAlts) && periodRecord.selectedAlts.length > 0)
+                        ? periodRecord.selectedAlts
+                        : (Array.isArray(m.selectedAlts) && m.selectedAlts.length > 0 ? m.selectedAlts : [m.approvedCode]);
+
+                      const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(
+                        selectedAlts, 
+                        m.approvedCode, 
+                        currentApprovedPrice, 
+                        selectedVendor, 
+                        periodFrom, 
+                        periodTo
+                      );
 
                     return (
                       <tr key={m.id} className="hover:bg-slate-50 transition font-medium">

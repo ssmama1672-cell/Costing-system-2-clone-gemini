@@ -80,62 +80,82 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   const purchases = globalStore.purchases || [];
   
   if (!Array.isArray(selectedCodesArray) || selectedCodesArray.length === 0) {
-    return { waRate: Number(approvedPrice || 0), totalQty: 0 };
+    return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Filter matched purchases for selected codes on or before periodTo
-  let candidatePurchases = [];
-
+  // Extract search tokens from selected alternate codes (e.g., 'RM0401', 'SH731', 'RM0018', 'SH03')
+  const tokens = [];
   selectedCodesArray.forEach(code => {
     if (!code) return;
-    const cClean = code.toString().toLowerCase().trim();
-    const isBaseline = cClean.includes('contract baseline');
+    const s = code.toString().trim();
+    if (s.toLowerCase().includes('contract baseline')) return;
+    
+    // Add raw code
+    tokens.push(s.toLowerCase());
+    
+    // Extract alphanumeric tokens of length >= 4 (like RM0401, SH731, RM0018, HIPS)
+    const subTokens = s.match(/[A-Za-z0-9_-]{4,}/g) || [];
+    subTokens.forEach(st => {
+      const low = st.toLowerCase();
+      if (!tokens.includes(low)) tokens.push(low);
+    });
+  });
 
-    if (!isBaseline) {
-      const matched = purchases.filter(p => {
-        const pGrade = (p.grade || p.itemCode || p.rawMaterial || p.supplier || '').toString().toLowerCase().trim();
-        const matchesCode = pGrade === cClean || pGrade.includes(cClean) || cClean.includes(pGrade);
-        const onOrBefore = !periodTo || !p.date || p.date <= periodTo;
-        return matchesCode && onOrBefore;
-      });
-      candidatePurchases.push(...matched);
+  if (tokens.length === 0) {
+    return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
+  }
+
+  // Match all inward purchase records that contain ANY of the tokens
+  const matchedInwards = [];
+  purchases.forEach((p, idx) => {
+    const pGrade = (p.grade || '').toLowerCase();
+    const pItem = (p.itemCode || '').toLowerCase();
+    const pRaw = (p.rawMaterial || '').toLowerCase();
+    const pSupp = (p.supplier || '').toLowerCase();
+    const pInv = (p.invoiceNo || '').toLowerCase();
+
+    const matches = tokens.some(t => 
+      pGrade.includes(t) || pItem.includes(t) || pRaw.includes(t) || pSupp.includes(t) || pInv.includes(t)
+    );
+
+    if (matches) {
+      // Must be on or before periodTo if periodTo is given
+      const onOrBefore = !periodTo || !p.date || p.date <= periodTo;
+      if (onOrBefore) {
+        matchedInwards.push({ ...p, _uid: `${p.id || idx}_${p.invoiceNo}_${p.itemCode}_${p.date}` });
+      }
     }
   });
 
-  // Deduplicate candidates by unique invoice/item/date
-  const uniqueCandidateMap = new Map();
-  candidatePurchases.forEach(p => {
-    const key = `${p.id || ''}_${p.invoiceNo || ''}_${p.itemCode || ''}_${p.grade || ''}_${p.date}_${p.rate}_${p.qty}_${candidatePurchases.indexOf(p)}`;
-  uniqueCandidateMap.set(key, p);
-  });
-  const allEligible = Array.from(uniqueCandidateMap.values());
-
-  if (allEligible.length === 0) {
-    return { waRate: Number(approvedPrice || 0), totalQty: 0 };
+  // If no purchases exist on or before periodTo, and period is June/pre-purchase, return approved price
+  if (matchedInwards.length === 0) {
+    return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Sort descending by date (most recent first)
-  allEligible.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // Sort matched purchases descending by date (most recent first)
+  matchedInwards.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
   // Separate current period invoices
-  const currentPeriodInvoices = allEligible.filter(p => (!periodFrom || p.date >= periodFrom) && (!periodTo || p.date <= periodTo));
+  const currentPeriodInwards = matchedInwards.filter(p => 
+    (!periodFrom || !p.date || p.date >= periodFrom) && 
+    (!periodTo || !p.date || p.date <= periodTo)
+  );
 
-  let finalInvoicesToAverage = [];
-
-  if (currentPeriodInvoices.length > 2) {
-    // Condition A: Greater than 2 purchases in current period -> Actual WA of all current period invoices
-    finalInvoicesToAverage = currentPeriodInvoices;
+  let lotsToAverage = [];
+  if (currentPeriodInwards.length > 2) {
+    // Condition A: > 2 purchases in current period -> WA of all current period inwards
+    lotsToAverage = currentPeriodInwards;
   } else {
-    // Condition B: <= 2 purchases in current period -> FIFO Lookback: take up to 7 most recent invoices
-    finalInvoicesToAverage = allEligible.slice(0, 7);
+    // Condition B: <= 2 purchases in current period -> FIFO lookback (up to 7 most recent lots on or before periodTo)
+    lotsToAverage = matchedInwards.slice(0, 7);
   }
 
   let totalQty = 0;
   let totalCost = 0;
 
-  finalInvoicesToAverage.forEach(m => {
-    const qty = Number(m.qty || m.quantity || 0);
-    const rate = Number(m.rate || m.netRate || m.price || 0);
+  lotsToAverage.forEach(p => {
+    const qty = Number(p.qty || p.quantity || 0);
+    const rate = Number(p.rate || p.netRate || p.price || 0);
     if (qty > 0 && rate > 0) {
       totalQty += qty;
       totalCost += (qty * rate);
@@ -146,12 +166,11 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return {
       waRate: totalCost / totalQty,
       totalQty,
-      sampleSize: finalInvoicesToAverage.length,
-      mode: currentPeriodInvoices.length > 2 ? 'CURRENT_PERIOD_FULL' : 'FIFO_ROLLING_7'
+      count: lotsToAverage.length
     };
   }
 
-  return { waRate: Number(approvedPrice || 0), totalQty: 0 };
+  return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
 };
 
 export function computeCombinedWeightedAverage(selectedCodesArray = [], approvedCode = '', approvedPrice = 0, vendor = 'haier') {
@@ -1080,15 +1099,15 @@ export function getHistoricalRmRecord(approvedCode, vendor, periodFrom, periodTo
   );
   if (exact) return exact;
 
-  // 2. Overlapping or closest preceding saved period
-  const matches = history.filter(h =>
+  // 2. Preceding saved period
+  const preceding = history.filter(h =>
     normalizeVendorId(h.vendor) === vNorm &&
     (h.materialCode || '').toLowerCase().trim() === codeClean &&
     (!periodTo || (h.periodTo && h.periodTo <= periodTo))
   );
-  if (matches.length > 0) {
-    matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
-    return matches[0];
+  if (preceding.length > 0) {
+    preceding.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
+    return preceding[0];
   }
 
   return null;
