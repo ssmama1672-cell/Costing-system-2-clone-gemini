@@ -944,3 +944,68 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
   // Fallback to active RM mapping
   return getActiveRmMapping(materialCode, vendor);
 }
+
+
+export function snapshotProductsForPeriod({ vendor, periodFrom, periodTo, calculateCostFn }) {
+  if (!globalStore.productPeriodHistory) globalStore.productPeriodHistory = [];
+  const vNorm = normalizeVendorId(vendor);
+  const vendorMaterials = (globalStore.rmMappingsData || []).filter(r => normalizeVendorId(r.vendor) === vNorm);
+
+  const snapCount = { updated: 0 };
+
+  (globalStore.baselineProducts || []).forEach(prod => {
+    if (normalizeVendorId(prod.vendor) === vNorm) {
+      const cleanRm = sanitizeMaterialName(prod.approvedRm || prod.baseRm, prod.componentName, prod.itemCode, prod.vendor);
+      const { baseRm, mbGrade } = parseMaterialString(cleanRm);
+
+      const matchedRm = vendorMaterials.find(m => m.type === 'RM' && m.approvedCode.toLowerCase().trim() === (baseRm || '').toLowerCase().trim());
+      const matchedMb = vendorMaterials.find(m => m.type === 'MB' && m.approvedCode.toLowerCase().trim() === (mbGrade || '').toLowerCase().trim());
+
+      const appRmPrice = matchedRm ? Number(matchedRm.approvedPrice || 0) : Number(prod.approvedRmPrice || 0);
+      const actRmWaPrice = matchedRm ? Number(matchedRm.activeWaPrice || matchedRm.approvedPrice || 0) : appRmPrice;
+
+      const appMbPrice = matchedMb ? Number(matchedMb.approvedPrice || 0) : Number(prod.approvedMbPrice || 0);
+      const actMbWaPrice = matchedMb ? Number(matchedMb.activeWaPrice || matchedMb.approvedPrice || 0) : appMbPrice;
+
+      const evalProduct = {
+        ...prod,
+        approvedRmPrice: appRmPrice,
+        activeRmWaPrice: actRmWaPrice,
+        approvedMbPrice: appMbPrice,
+        activeMbWaPrice: actMbWaPrice
+      };
+
+      let detailed = { approvedBaselineCost: prod.approvedCost, simulatedActualCost: prod.simulatedCost };
+      if (typeof calculateCostFn === 'function') {
+        detailed = calculateCostFn(evalProduct);
+      }
+
+      const historyKey = `${vNorm}_${(prod.itemCode || '').trim().toLowerCase()}_${periodFrom}_${periodTo}`;
+      const record = {
+        key: historyKey,
+        itemCode: prod.itemCode,
+        componentName: prod.componentName,
+        vendor: prod.vendor,
+        periodFrom,
+        periodTo,
+        approvedRm: cleanRm,
+        approvedRmRate: appRmPrice,
+        activeWaRate: actRmWaPrice,
+        approvedBaselineCost: detailed.approvedBaselineCost || detailed.totalCost || 0,
+        simulatedActualCost: detailed.simulatedActualCost || detailed.finalLanded || detailed.totalCost || 0,
+        savedAt: new Date().toISOString()
+      };
+
+      const existingIdx = globalStore.productPeriodHistory.findIndex(h => h.key === historyKey);
+      if (existingIdx >= 0) {
+        globalStore.productPeriodHistory[existingIdx] = record;
+      } else {
+        globalStore.productPeriodHistory.push(record);
+      }
+      snapCount.updated++;
+    }
+  });
+
+  notifySubscribers();
+  return snapCount;
+}

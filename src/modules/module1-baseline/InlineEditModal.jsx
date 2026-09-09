@@ -1496,7 +1496,7 @@ export function calculateDetailedCost(product) {
   const mbInfo = getActiveMbMapping(mbGrade || product.approvedMb, product.vendor) || {};
 
   const approvedRmRate = Number(product.approvedRmPrice || rmInfo.approvedPrice || (isAtomberg ? 131.00 : 154.00));
-  const runningRmWaRate = Number(params.runningRmBaseRate ?? rmInfo.activeWaPrice ?? rmInfo.approvedPrice ?? approvedRmRate);
+  const runningRmWaRate = Number(product.activeRmWaPrice !== undefined ? product.activeRmWaPrice : (params.runningRmBaseRate ?? rmInfo.activeWaPrice ?? rmInfo.approvedPrice ?? approvedRmRate));
 
   const approvedMbRate = Number(product.approvedMbPrice || mbInfo.approvedMbPrice || (isAtomberg ? 154.00 : 242.00));
   const runningMbWaRate = Number(params.runningMbBaseRate ?? mbInfo.activeMbWaPrice ?? mbInfo.approvedMbPrice ?? approvedMbRate);
@@ -1568,7 +1568,7 @@ export function calculateDetailedCost(product) {
       scrapAdj: Number(params.runningScrapAdj ?? product.scrapAdj ?? 0)
     });
 
-    const approvedBaselineCost = Number(product.approvedCost || baseCalc.totalCost || 0);
+    const approvedBaselineCost = Number(baseCalc.totalCost || product.approvedCost || 0);
     const simulatedActualCost = Number(runningCalc.totalCost || approvedBaselineCost || 0);
 
     return {

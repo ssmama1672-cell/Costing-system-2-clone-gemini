@@ -27,42 +27,44 @@ export default function CostingRunEnginePage() {
     (p.componentName || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const simulationRows = filteredProducts.map(prod => {
-    const { baseRm, mbGrade } = parseMaterialString(prod.approvedRm || prod.baseRm);
+    const simulationRows = filteredProducts.map(prod => {
+    const { baseRm } = parseMaterialString(prod.approvedRm || prod.baseRm);
     const rmLookupKey = baseRm || prod.baseRm || prod.approvedRm;
     
-    // Check for saved historical product snapshot for this vendor and period
+    // Look up historical saved snapshot for this period
     const snapshot = getPeriodProductCost(prod.itemCode, prod.vendor, periodFrom, periodTo);
 
-    // Dynamic resolution based on period's RM rate
-    const rmMap = getRmRateForPeriod(rmLookupKey, prod.vendor, periodFrom, periodTo);
-    const mbMap = mbGrade ? getRmRateForPeriod(mbGrade, prod.vendor, periodFrom, periodTo) : null;
+    if (snapshot) {
+      const delta = Number((Number(snapshot.approvedBaselineCost) - Number(snapshot.simulatedActualCost)).toFixed(2));
+      return {
+        ...prod,
+        rmLookupKey,
+        approvedRmRate: snapshot.approvedRmRate,
+        activeWaRate: snapshot.activeWaRate,
+        approvedBaselineCost: Number(snapshot.approvedBaselineCost),
+        simulatedActualCost: Number(snapshot.simulatedActualCost),
+        delta
+      };
+    }
 
-    // Build period-adjusted product object for precise cost run
+    // Dynamic resolution fallback
+    const rmMap = getRmRateForPeriod(rmLookupKey, prod.vendor, periodFrom, periodTo);
     const periodAdjustedProduct = {
       ...prod,
       approvedRmPrice: rmMap.approvedPrice || prod.approvedRmPrice,
-      activeRmWaPrice: rmMap.activeWaPrice || prod.activeRmWaPrice || rmMap.approvedPrice,
-      approvedMbPrice: mbMap ? (mbMap.approvedPrice || prod.approvedMbPrice) : prod.approvedMbPrice,
-      activeMbWaPrice: mbMap ? (mbMap.activeWaPrice || mbMap.approvedPrice) : prod.activeMbWaPrice
+      activeRmWaPrice: rmMap.activeWaPrice || rmMap.approvedPrice || prod.approvedRmPrice
     };
 
     const detailed = calculateDetailedCost(periodAdjustedProduct);
-    const approvedBaselineCost = snapshot 
-      ? Number(snapshot.approvedBaselineCost) 
-      : Number(detailed.approvedBaselineCost || prod.approvedCost || 0);
-
-    const simulatedActualCost = snapshot 
-      ? Number(snapshot.simulatedActualCost) 
-      : Number(detailed.simulatedActualCost || detailed.finalLanded || approvedBaselineCost);
-
+    const approvedBaselineCost = Number(detailed.approvedBaselineCost || 0);
+    const simulatedActualCost = Number(detailed.simulatedActualCost || approvedBaselineCost);
     const delta = Number((approvedBaselineCost - simulatedActualCost).toFixed(2));
 
     return {
       ...prod,
       rmLookupKey,
       approvedRmRate: rmMap.approvedPrice || prod.approvedRmPrice || 0,
-      activeWaRate: rmMap.activeWaPrice || rmMap.approvedPrice || prod.approvedRmPrice || 0,
+      activeWaRate: rmMap.activeWaPrice || rmMap.approvedPrice || 0,
       approvedBaselineCost,
       simulatedActualCost,
       delta

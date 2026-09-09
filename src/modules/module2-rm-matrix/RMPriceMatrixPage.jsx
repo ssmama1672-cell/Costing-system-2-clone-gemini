@@ -56,7 +56,7 @@ import {
   computeGradeWeightedAverage,
   computeCombinedWeightedAverageWithQty,
   normalizeVendorId,
-  isInvalidMaterialCode, getPreviousPeriodRmPrice, savePeriodProductCostSnapshot, getPeriodProductCost } from '../../shared/masterStore';
+  isInvalidMaterialCode, getPreviousPeriodRmPrice, savePeriodProductCostSnapshot, getPeriodProductCost, snapshotProductsForPeriod } from '../../shared/masterStore';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
 // Searchable Multi-Select Component with QTY drilldown button
@@ -390,26 +390,13 @@ export default function RMPriceMatrixPage() {
 
   const handleSaveVendorPeriod = () => {
     const res = saveVendorPeriodSchedule({ vendor: selectedVendor, periodFrom, periodTo });
-    
-    // Also snapshot products under this vendor with current period costs
-    (storeState.baselineProducts || []).forEach(prod => {
-      if (normalizeVendorId(prod.vendor) === normalizeVendorId(selectedVendor)) {
-        const { baseRm } = parseMaterialString(prod.approvedRm || prod.baseRm);
-        const rmMap = getActiveRmMapping(baseRm || prod.approvedRm, selectedVendor);
-        const detailed = calculateDetailedCost(prod);
-        savePeriodProductCostSnapshot({
-          itemCode: prod.itemCode,
-          vendor: selectedVendor,
-          periodFrom,
-          periodTo,
-          approvedRmRate: rmMap.approvedPrice || prod.approvedRmPrice,
-          activeWaRate: rmMap.activeWaPrice || rmMap.approvedPrice,
-          approvedBaselineCost: detailed.approvedBaselineCost || prod.approvedCost,
-          simulatedActualCost: detailed.simulatedActualCost || detailed.finalLanded
-        });
-      }
-    });
-    setSaveSuccessMsg(`✓ Successfully saved & locked ${res.count} materials for ${selectedVendor} (${periodFrom} to ${periodTo})`);
+      const snapRes = snapshotProductsForPeriod({
+        vendor: selectedVendor,
+        periodFrom,
+        periodTo,
+        calculateCostFn: calculateDetailedCost
+      });
+      setSaveSuccessMsg(`✓ Successfully saved & locked ${res.count} materials for ${selectedVendor} (${periodFrom} to ${periodTo})`);
     setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
 
