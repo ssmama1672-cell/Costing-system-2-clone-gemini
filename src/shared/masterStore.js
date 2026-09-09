@@ -105,8 +105,8 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   // Deduplicate candidates by unique invoice/item/date
   const uniqueCandidateMap = new Map();
   candidatePurchases.forEach(p => {
-    const key = `${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${p.date}_${p.rate}_${p.qty}`;
-    if (!uniqueCandidateMap.has(key)) uniqueCandidateMap.set(key, p);
+    const key = `${p.id || ''}_${p.invoiceNo || ''}_${p.itemCode || ''}_${p.grade || ''}_${p.date}_${p.rate}_${p.qty}_${candidatePurchases.indexOf(p)}`;
+  uniqueCandidateMap.set(key, p);
   });
   const allEligible = Array.from(uniqueCandidateMap.values());
 

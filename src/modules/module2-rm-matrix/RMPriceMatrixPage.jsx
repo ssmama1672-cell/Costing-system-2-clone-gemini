@@ -232,6 +232,7 @@ export default function RMPriceMatrixPage() {
   const [periodTo, setPeriodTo] = useState('2026-08-31');
   const [showAddModal, setShowAddModal] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   
   // Drilldown States
   const [viewingUsageMat, setViewingUsageMat] = useState(null);
@@ -839,7 +840,7 @@ export default function RMPriceMatrixPage() {
                               type="number"
                               step="0.01"
                               disabled={isRowDisabled}
-                              value={m.approvedPrice || ''}
+                              value={typeof currentApprovedPrice !== 'undefined' ? currentApprovedPrice : (m.approvedPrice || '')}
                               onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
                               className="w-16 bg-transparent font-black text-amber-950 text-center outline-hidden"
                             />
