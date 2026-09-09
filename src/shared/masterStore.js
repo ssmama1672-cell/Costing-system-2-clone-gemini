@@ -554,6 +554,11 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
     if (normalizeVendorId(r.vendor) === vNorm) {
       const historyKey = `${r.approvedCode}_${vNorm}_${periodFrom}_${periodTo}`;
       const existingIdx = globalStore.rmPriceHistory.findIndex(h => h.historyKey === historyKey);
+      const selectedAlts = Array.isArray(r.selectedAlts) && r.selectedAlts.length > 0 ? r.selectedAlts : [r.approvedCode];
+      const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, r.approvedCode, r.approvedPrice, vendor);
+      const resolvedWa = Number(waRate || r.activeWaPrice || r.approvedPrice || 0);
+      r.activeWaPrice = resolvedWa; // save back to mapping object
+
       const snapshot = {
         historyKey,
         materialCode: r.approvedCode,
@@ -561,9 +566,9 @@ export function saveVendorPeriodSchedule({ vendor, periodFrom, periodTo }) {
         vendor: r.vendor,
         periodFrom,
         periodTo,
-        approvedPrice: r.approvedPrice,
-        activeWaPrice: r.activeWaPrice || r.approvedPrice,
-        selectedAlts: r.selectedAlts || [r.approvedCode],
+        approvedPrice: Number(r.approvedPrice || 0),
+        activeWaPrice: resolvedWa,
+        selectedAlts: selectedAlts,
         archivedAt: new Date().toISOString()
       };
       if (existingIdx >= 0) {
@@ -911,7 +916,6 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
   const vNorm = normalizeVendorId(vendor);
   const codeClean = (materialCode || '').trim().toLowerCase();
 
-  // 1. Exact match in period history
   const exact = history.find(h => 
     normalizeVendorId(h.vendor) === vNorm && 
     (h.materialCode || '').trim().toLowerCase() === codeClean &&
@@ -919,14 +923,15 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
     h.periodTo === periodTo
   );
   if (exact) {
+    const selectedAlts = exact.selectedAlts || [exact.materialCode];
+    const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, exact.materialCode, exact.approvedPrice, vendor);
     return {
       approvedPrice: Number(exact.approvedPrice || 0),
-      activeWaPrice: Number(exact.activeWaPrice || exact.approvedPrice || 0),
-      selectedAlts: exact.selectedAlts || [exact.materialCode]
+      activeWaPrice: Number(exact.activeWaPrice || waRate || exact.approvedPrice || 0),
+      selectedAlts
     };
   }
 
-  // 2. Match latest period prior to or equal to periodTo
   const matches = history.filter(h => 
     normalizeVendorId(h.vendor) === vNorm && 
     (h.materialCode || '').trim().toLowerCase() === codeClean &&
@@ -934,16 +939,24 @@ export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
   );
   if (matches.length > 0) {
     matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
+    const selectedAlts = matches[0].selectedAlts || [matches[0].materialCode];
+    const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, matches[0].materialCode, matches[0].approvedPrice, vendor);
     return {
       approvedPrice: Number(matches[0].approvedPrice || 0),
-      activeWaPrice: Number(matches[0].activeWaPrice || matches[0].approvedPrice || 0),
-      selectedAlts: matches[0].selectedAlts || [matches[0].materialCode]
+      activeWaPrice: Number(matches[0].activeWaPrice || waRate || matches[0].approvedPrice || 0),
+      selectedAlts
     };
   }
 
-  // Fallback to active RM mapping
-  return getActiveRmMapping(materialCode, vendor);
-}
+  const activeMap = getActiveRmMapping(materialCode, vendor);
+  const selectedAlts = Array.isArray(activeMap.selectedAlts) && activeMap.selectedAlts.length > 0 ? activeMap.selectedAlts : [activeMap.approvedCode];
+  const { waRate } = computeCombinedWeightedAverageWithQty(selectedAlts, activeMap.approvedCode, activeMap.approvedPrice, vendor);
+  return {
+    ...activeMap,
+    activeWaPrice: Number(waRate || activeMap.activeWaPrice || activeMap.approvedPrice || 0)
+  };
+};
+
 
 
 export function snapshotProductsForPeriod({ vendor, periodFrom, periodTo, calculateCostFn }) {
@@ -962,10 +975,20 @@ export function snapshotProductsForPeriod({ vendor, periodFrom, periodTo, calcul
       const matchedMb = vendorMaterials.find(m => m.type === 'MB' && m.approvedCode.toLowerCase().trim() === (mbGrade || '').toLowerCase().trim());
 
       const appRmPrice = matchedRm ? Number(matchedRm.approvedPrice || 0) : Number(prod.approvedRmPrice || 0);
-      const actRmWaPrice = matchedRm ? Number(matchedRm.activeWaPrice || matchedRm.approvedPrice || 0) : appRmPrice;
+      let actRmWaPrice = appRmPrice;
+      if (matchedRm) {
+        const alts = Array.isArray(matchedRm.selectedAlts) && matchedRm.selectedAlts.length > 0 ? matchedRm.selectedAlts : [matchedRm.approvedCode];
+        const { waRate } = computeCombinedWeightedAverageWithQty(alts, matchedRm.approvedCode, matchedRm.approvedPrice, vendor);
+        actRmWaPrice = Number(waRate || matchedRm.activeWaPrice || appRmPrice);
+      }
 
       const appMbPrice = matchedMb ? Number(matchedMb.approvedPrice || 0) : Number(prod.approvedMbPrice || 0);
-      const actMbWaPrice = matchedMb ? Number(matchedMb.activeWaPrice || matchedMb.approvedPrice || 0) : appMbPrice;
+      let actMbWaPrice = appMbPrice;
+      if (matchedMb) {
+        const alts = Array.isArray(matchedMb.selectedAlts) && matchedMb.selectedAlts.length > 0 ? matchedMb.selectedAlts : [matchedMb.approvedCode];
+        const { waRate } = computeCombinedWeightedAverageWithQty(alts, matchedMb.approvedCode, matchedMb.approvedPrice, vendor);
+        actMbWaPrice = Number(waRate || matchedMb.activeMbWaPrice || appMbPrice);
+      }
 
       const evalProduct = {
         ...prod,
