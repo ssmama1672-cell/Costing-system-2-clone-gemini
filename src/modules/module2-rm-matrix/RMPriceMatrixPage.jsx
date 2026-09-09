@@ -56,7 +56,7 @@ import {
   computeGradeWeightedAverage,
   computeCombinedWeightedAverageWithQty,
   normalizeVendorId,
-  isInvalidMaterialCode, getPreviousPeriodRmPrice } from '../../shared/masterStore';
+  isInvalidMaterialCode, getPreviousPeriodRmPrice, savePeriodProductCostSnapshot, getPeriodProductCost } from '../../shared/masterStore';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
 // Searchable Multi-Select Component with QTY drilldown button
@@ -390,6 +390,25 @@ export default function RMPriceMatrixPage() {
 
   const handleSaveVendorPeriod = () => {
     const res = saveVendorPeriodSchedule({ vendor: selectedVendor, periodFrom, periodTo });
+    
+    // Also snapshot products under this vendor with current period costs
+    (storeState.baselineProducts || []).forEach(prod => {
+      if (normalizeVendorId(prod.vendor) === normalizeVendorId(selectedVendor)) {
+        const { baseRm } = parseMaterialString(prod.approvedRm || prod.baseRm);
+        const rmMap = getActiveRmMapping(baseRm || prod.approvedRm, selectedVendor);
+        const detailed = calculateDetailedCost(prod);
+        savePeriodProductCostSnapshot({
+          itemCode: prod.itemCode,
+          vendor: selectedVendor,
+          periodFrom,
+          periodTo,
+          approvedRmRate: rmMap.approvedPrice || prod.approvedRmPrice,
+          activeWaRate: rmMap.activeWaPrice || rmMap.approvedPrice,
+          approvedBaselineCost: detailed.approvedBaselineCost || prod.approvedCost,
+          simulatedActualCost: detailed.simulatedActualCost || detailed.finalLanded
+        });
+      }
+    });
     setSaveSuccessMsg(`✓ Successfully saved & locked ${res.count} materials for ${selectedVendor} (${periodFrom} to ${periodTo})`);
     setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
@@ -753,9 +772,9 @@ export default function RMPriceMatrixPage() {
       {/* TAB 1: RM PRICE MATRIX */}
       {activeTab === 'matrix' && (
         <div className="bg-white rounded-2xl border border-slate-300 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[68vh] relative rounded-xl border border-slate-200">
             <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-900 text-white uppercase font-bold text-[10px]">
+              <thead className="bg-slate-900 text-white uppercase font-bold text-[10px] sticky top-0 z-20 shadow-md">
                 <tr>
                   <th className="py-3 px-4 w-72">APPROVED RM/MB CODE & USAGE</th>
                   <th className="py-3 px-4 text-center w-32 bg-slate-800 text-slate-300">PREV APPROVED (₹/KG)</th>

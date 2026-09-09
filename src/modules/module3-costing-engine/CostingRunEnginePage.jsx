@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Download, Search, Layers, TrendingUp, TrendingDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { globalStore, subscribeStore, getActiveRmMapping, parseMaterialString, normalizeVendorId } from '../../shared/masterStore';
+import { globalStore, subscribeStore, getActiveRmMapping, parseMaterialString, normalizeVendorId, getRmRateForPeriod, getPeriodProductCost } from '../../shared/masterStore';
 import { calculateDetailedCost } from '../module1-baseline/InlineEditModal';
 
 export default function CostingRunEnginePage() {
@@ -28,14 +28,34 @@ export default function CostingRunEnginePage() {
   );
 
   const simulationRows = filteredProducts.map(prod => {
-    const { baseRm } = parseMaterialString(prod.approvedRm || prod.baseRm);
+    const { baseRm, mbGrade } = parseMaterialString(prod.approvedRm || prod.baseRm);
     const rmLookupKey = baseRm || prod.baseRm || prod.approvedRm;
-    const rmMap = getActiveRmMapping(rmLookupKey, prod.vendor);
     
-    // Live calculation fetching exact baseline and simulated costs
-    const detailed = calculateDetailedCost(prod);
-    const approvedBaselineCost = Number(detailed.approvedBaselineCost || prod.approvedCost || 0);
-    const simulatedActualCost = Number(detailed.simulatedActualCost || detailed.finalLanded || approvedBaselineCost);
+    // Check for saved historical product snapshot for this vendor and period
+    const snapshot = getPeriodProductCost(prod.itemCode, prod.vendor, periodFrom, periodTo);
+
+    // Dynamic resolution based on period's RM rate
+    const rmMap = getRmRateForPeriod(rmLookupKey, prod.vendor, periodFrom, periodTo);
+    const mbMap = mbGrade ? getRmRateForPeriod(mbGrade, prod.vendor, periodFrom, periodTo) : null;
+
+    // Build period-adjusted product object for precise cost run
+    const periodAdjustedProduct = {
+      ...prod,
+      approvedRmPrice: rmMap.approvedPrice || prod.approvedRmPrice,
+      activeRmWaPrice: rmMap.activeWaPrice || prod.activeRmWaPrice || rmMap.approvedPrice,
+      approvedMbPrice: mbMap ? (mbMap.approvedPrice || prod.approvedMbPrice) : prod.approvedMbPrice,
+      activeMbWaPrice: mbMap ? (mbMap.activeWaPrice || mbMap.approvedPrice) : prod.activeMbWaPrice
+    };
+
+    const detailed = calculateDetailedCost(periodAdjustedProduct);
+    const approvedBaselineCost = snapshot 
+      ? Number(snapshot.approvedBaselineCost) 
+      : Number(detailed.approvedBaselineCost || prod.approvedCost || 0);
+
+    const simulatedActualCost = snapshot 
+      ? Number(snapshot.simulatedActualCost) 
+      : Number(detailed.simulatedActualCost || detailed.finalLanded || approvedBaselineCost);
+
     const delta = Number((approvedBaselineCost - simulatedActualCost).toFixed(2));
 
     return {
@@ -141,7 +161,7 @@ export default function CostingRunEnginePage() {
             </div>
           </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[65vh] relative rounded-xl border border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
               <tr>

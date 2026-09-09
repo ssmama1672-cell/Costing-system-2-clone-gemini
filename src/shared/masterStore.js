@@ -859,3 +859,88 @@ export function getPreviousPeriodRmPrice(approvedCode, vendor, currentPeriodFrom
   matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
   return Number(matches[0].approvedPrice || 0);
 }
+
+
+// ============================================================================
+// PERIOD PRODUCT COSTING SNAPSHOT STORE (Historical Baseline & Actuals)
+// ============================================================================
+export function savePeriodProductCostSnapshot(snapshot) {
+  if (!globalStore.productPeriodHistory) globalStore.productPeriodHistory = [];
+  const key = `${normalizeVendorId(snapshot.vendor)}_${(snapshot.itemCode || '').trim()}_${snapshot.periodFrom}_${snapshot.periodTo}`;
+  const existingIdx = globalStore.productPeriodHistory.findIndex(h => h.key === key);
+  const record = { ...snapshot, key, savedAt: new Date().toISOString() };
+  if (existingIdx >= 0) {
+    globalStore.productPeriodHistory[existingIdx] = record;
+  } else {
+    globalStore.productPeriodHistory.push(record);
+  }
+  notifySubscribers();
+  return record;
+}
+
+export function getPeriodProductCost(itemCode, vendor, periodFrom, periodTo) {
+  const history = globalStore.productPeriodHistory || [];
+  const vNorm = normalizeVendorId(vendor);
+  const codeClean = (itemCode || '').trim().toLowerCase();
+
+  // 1. Try exact period match
+  const exact = history.find(h => 
+    normalizeVendorId(h.vendor) === vNorm && 
+    (h.itemCode || '').trim().toLowerCase() === codeClean &&
+    h.periodFrom === periodFrom && 
+    h.periodTo === periodTo
+  );
+  if (exact) return exact;
+
+  // 2. Try period overlap or closest preceding period
+  const matches = history.filter(h => 
+    normalizeVendorId(h.vendor) === vNorm && 
+    (h.itemCode || '').trim().toLowerCase() === codeClean &&
+    (!periodFrom || (h.periodTo && h.periodTo <= periodTo))
+  );
+  if (matches.length > 0) {
+    matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
+    return matches[0];
+  }
+
+  return null;
+}
+
+export function getRmRateForPeriod(materialCode, vendor, periodFrom, periodTo) {
+  const history = globalStore.rmPriceHistory || [];
+  const vNorm = normalizeVendorId(vendor);
+  const codeClean = (materialCode || '').trim().toLowerCase();
+
+  // 1. Exact match in period history
+  const exact = history.find(h => 
+    normalizeVendorId(h.vendor) === vNorm && 
+    (h.materialCode || '').trim().toLowerCase() === codeClean &&
+    h.periodFrom === periodFrom &&
+    h.periodTo === periodTo
+  );
+  if (exact) {
+    return {
+      approvedPrice: Number(exact.approvedPrice || 0),
+      activeWaPrice: Number(exact.activeWaPrice || exact.approvedPrice || 0),
+      selectedAlts: exact.selectedAlts || [exact.materialCode]
+    };
+  }
+
+  // 2. Match latest period prior to or equal to periodTo
+  const matches = history.filter(h => 
+    normalizeVendorId(h.vendor) === vNorm && 
+    (h.materialCode || '').trim().toLowerCase() === codeClean &&
+    (!periodTo || (h.periodTo && h.periodTo <= periodTo))
+  );
+  if (matches.length > 0) {
+    matches.sort((a, b) => (b.periodTo || '').localeCompare(a.periodTo || ''));
+    return {
+      approvedPrice: Number(matches[0].approvedPrice || 0),
+      activeWaPrice: Number(matches[0].activeWaPrice || matches[0].approvedPrice || 0),
+      selectedAlts: matches[0].selectedAlts || [matches[0].materialCode]
+    };
+  }
+
+  // Fallback to active RM mapping
+  return getActiveRmMapping(materialCode, vendor);
+}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Download, 
+import { Download, 
   Layers, 
   Activity, 
   ArrowUpRight, 
@@ -16,7 +15,7 @@ import {
   ShoppingBag
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { globalStore, subscribeStore, getActiveRmMapping, normalizeVendorId } from '../../shared/masterStore';
+import { globalStore, subscribeStore, getActiveRmMapping, normalizeVendorId, getPeriodProductCost, getRmRateForPeriod, parseMaterialString } from '../../shared/masterStore';
 import { calculateDetailedCost } from '../module1-baseline/InlineEditModal';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
@@ -338,7 +337,7 @@ export default function MISVariancePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[65vh] relative rounded-xl border border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
               <tr>
@@ -426,7 +425,7 @@ export default function MISVariancePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[65vh] relative rounded-xl border border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
               <tr>
@@ -501,7 +500,7 @@ export default function MISVariancePage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[65vh] relative rounded-xl border border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
               <tr>
@@ -607,7 +606,7 @@ export default function MISVariancePage() {
           </div>
           <span className="text-[11px] text-slate-300 font-bold">Live Sync with Day-Wise Purchases & Invoices</span>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[65vh] relative rounded-xl border border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-slate-100 text-slate-800 uppercase font-bold text-[10px] border-b border-slate-300">
               <tr>
