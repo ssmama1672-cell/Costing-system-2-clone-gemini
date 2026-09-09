@@ -839,7 +839,7 @@ export default function RMPriceMatrixPage() {
                               type="number"
                               step="0.01"
                               disabled={isRowDisabled}
-                              value={currentApprovedPrice || ''}
+                              value={m.approvedPrice || ''}
                               onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
                               className="w-16 bg-transparent font-black text-amber-950 text-center outline-hidden"
                             />
