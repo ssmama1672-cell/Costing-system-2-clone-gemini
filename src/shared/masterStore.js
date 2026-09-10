@@ -377,7 +377,7 @@ export async function initSupabaseData() {
       }));
     }
 
-    if (purData) {
+    if (purData && purData.length > 0) {
       globalStore.purchases = purData.map(pur => ({
         id: pur.id,
         date: pur.date,
@@ -390,7 +390,13 @@ export async function initSupabaseData() {
         rate: Number(pur.rate || 0),
         type: pur.type || 'RM'
       }));
+    } else if (!globalStore.purchases || globalStore.purchases.length === 0) {
+      const localSaved = loadPersistedStore();
+      if (localSaved && Array.isArray(localSaved.purchases) && localSaved.purchases.length > 0) {
+        globalStore.purchases = localSaved.purchases;
+      }
     }
+
 
     if (salesData) {
       globalStore.sales = salesData.map(s => ({
@@ -901,6 +907,23 @@ export function addDayWisePurchase(rec) {
   globalStore.purchases.unshift(newRec);
   if (typeof persistCurrentStore === 'function') persistCurrentStore();
   notifyStore();
+
+  if (supabase) {
+    Promise.resolve(supabase.from('purchases').insert([{
+      date: newRec.date,
+      vendor: newRec.vendor,
+      supplier: newRec.supplier,
+      invoice_no: newRec.invoiceNo || '',
+      item_code: newRec.itemCode || '',
+      grade: newRec.grade || '',
+      qty: Number(newRec.qty || 0),
+      rate: Number(newRec.rate || 0),
+      type: newRec.type || 'RM'
+    }])).then(res => {
+      if (res.error) console.error('Supabase single purchase insert error:', res.error);
+    }).catch(console.error);
+  }
+
   return { success: true };
 }
 
@@ -1171,6 +1194,24 @@ export function bulkAddDayWisePurchases(records = []) {
   globalStore.purchases = [...prepared, ...globalStore.purchases];
   if (typeof persistCurrentStore === 'function') persistCurrentStore();
   notifyStore();
+
+  if (supabase) {
+    const supabaseRows = prepared.map(p => ({
+      date: p.date,
+      vendor: p.vendor || 'ALL_VENDORS',
+      supplier: p.supplier || '',
+      invoice_no: p.invoiceNo || '',
+      item_code: p.itemCode || '',
+      grade: p.grade || '',
+      qty: Number(p.qty || 0),
+      rate: Number(p.rate || 0),
+      type: p.type || 'RM'
+    }));
+    Promise.resolve(supabase.from('purchases').insert(supabaseRows)).then(res => {
+      if (res.error) console.error('Supabase bulk purchase insert error:', res.error);
+    }).catch(console.error);
+  }
+
   return { success: true, count: prepared.length };
 }
 
