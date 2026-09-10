@@ -8,13 +8,36 @@ function parseSafeDate(raw) {
   }
   const str = String(raw).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  // Support DD-MM-YYYY, DD/MM/YYYY, DD-MM-YY, DD/MM/YY
-  const parts = str.split(/[-/]/);
+
+  // Support dots (.), hyphens (-), and slashes (/)
+  const parts = str.split(/[-./]/);
   if (parts.length === 3) {
-    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-    if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-    if (parts[2].length === 2) return `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    let day = parts[0];
+    let month = parts[1];
+    let year = parts[2];
+
+    // Case 1: YYYY-MM-DD
+    if (parts[0].length === 4) {
+      year = parts[0];
+      month = parts[1];
+      day = parts[2];
+    }
+    // Case 2: DD-MM-YY -> 20YY
+    else if (year.length === 2) {
+      year = '20' + year;
+    }
+
+    const yNum = parseInt(year, 10);
+    const mNum = parseInt(month, 10);
+    let dNum = parseInt(day, 10);
+
+    if (!isNaN(yNum) && !isNaN(mNum) && !isNaN(dNum)) {
+      const maxDays = new Date(yNum, mNum, 0).getDate();
+      if (dNum > maxDays) dNum = maxDays;
+      return `${yNum}-${String(mNum).padStart(2, '0')}-${String(dNum).padStart(2, '0')}`;
+    }
   }
+
   const parsed = new Date(str);
   return isNaN(parsed.getTime()) ? new Date().toISOString().slice(0, 10) : parsed.toISOString().slice(0, 10);
 }

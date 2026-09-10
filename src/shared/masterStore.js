@@ -7,7 +7,8 @@ export function toComparableIsoDate(raw) {
   }
   const str = String(raw).trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
-  const parts = str.split(/[-/]/);
+
+  const parts = str.split(/[-./]/);
   if (parts.length === 3) {
     let y = parts[0], m = parts[1], d = parts[2];
     if (parts[2].length === 4) {
@@ -19,7 +20,6 @@ export function toComparableIsoDate(raw) {
       m = parts[1];
       d = parts[0];
     }
-    // Clamp day to valid month max (e.g. 31st of June -> 30th)
     const yearNum = parseInt(y, 10);
     const monthNum = parseInt(m, 10);
     let dayNum = parseInt(d, 10);
