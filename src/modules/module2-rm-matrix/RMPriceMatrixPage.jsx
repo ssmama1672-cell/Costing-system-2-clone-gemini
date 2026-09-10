@@ -350,46 +350,43 @@ export default function RMPriceMatrixPage() {
 
   const isRowDisabled = isGlobalLocked || isMatrixLocked;
 
-  const handlePriceInputChange = (rowId, rawStr) => {
-    // Keep local string state intact for smooth typing and backspacing
-    setEditingPrices(prev => ({ ...prev, [rowId]: rawStr }));
+  const handlePriceInputChange = (rowId, rawStr, approvedCode) => {
+    const periodKey = `${selectedVendor}_${periodFrom}_${periodTo}_${rowId}`;
+    // Update local string buffer directly
+    setEditingPrices(prev => ({ ...prev, [periodKey]: rawStr }));
+
+    const numVal = parseFloat(rawStr);
+    if (!isNaN(numVal)) {
+      updateRmMappingRow(rowId, { approvedPrice: numVal });
+
+      if (!globalStore.rmPriceHistory) globalStore.rmPriceHistory = [];
+      const vNorm = normalizeVendorId(selectedVendor);
+      const historyKey = `${(approvedCode || '').toLowerCase().trim()}_${vNorm}_${periodFrom}_${periodTo}`;
+      const existIdx = globalStore.rmPriceHistory.findIndex(h => h.historyKey === historyKey);
+      
+      const snap = {
+        historyKey,
+        materialCode: approvedCode,
+        type: 'RM',
+        vendor: selectedVendor,
+        periodFrom,
+        periodTo,
+        approvedPrice: numVal,
+        archivedAt: new Date().toISOString()
+      };
+
+      if (existIdx >= 0) {
+        globalStore.rmPriceHistory[existIdx] = { ...globalStore.rmPriceHistory[existIdx], ...snap };
+      } else {
+        globalStore.rmPriceHistory.push(snap);
+      }
+    }
   };
 
   const handlePriceInputCommit = (rowId, rawStr, approvedCode) => {
-    const numVal = parseFloat(rawStr) || 0;
-    
-    // Update master mapping row
-    updateRmMappingRow(rowId, { approvedPrice: numVal });
-
-    // Clear local editing buffer for this row
-    setEditingPrices(prev => {
-      const next = { ...prev };
-      delete next[rowId];
-      return next;
-    });
-
-    // Record directly into period history snapshot
-    if (!globalStore.rmPriceHistory) globalStore.rmPriceHistory = [];
-    const vNorm = normalizeVendorId(selectedVendor);
-    const historyKey = `${(approvedCode || '').toLowerCase().trim()}_${vNorm}_${periodFrom}_${periodTo}`;
-    const existIdx = globalStore.rmPriceHistory.findIndex(h => h.historyKey === historyKey);
-    
-    const snap = {
-      historyKey,
-      materialCode: approvedCode,
-      type: 'RM',
-      vendor: selectedVendor,
-      periodFrom,
-      periodTo,
-      approvedPrice: numVal,
-      archivedAt: new Date().toISOString()
-    };
-
-    if (existIdx >= 0) {
-      globalStore.rmPriceHistory[existIdx] = { ...globalStore.rmPriceHistory[existIdx], ...snap };
-    } else {
-      globalStore.rmPriceHistory.push(snap);
-    }
+    // Keep value in editingPrices map so blur never clears the input
+    const periodKey = `${selectedVendor}_${periodFrom}_${periodTo}_${rowId}`;
+    setEditingPrices(prev => ({ ...prev, [periodKey]: rawStr }));
   };
 
   const handleToggleAltOption = (rowId, currentSelectedArray, toggledCode, approvedCode, approvedPrice) => {
@@ -834,11 +831,19 @@ export default function RMPriceMatrixPage() {
                 ) : (
                   vendorMaterials.map(m => {
                       const usingProds = getProductsUsingMaterial(m.approvedCode, selectedVendor);
+                      const periodKey = `${selectedVendor}_${periodFrom}_${periodTo}_${m.id}`;
                       const periodRecord = getHistoricalRmRecord(m.approvedCode, selectedVendor, periodFrom, periodTo);
                       
-                      const currentApprovedPrice = (periodRecord && periodRecord.approvedPrice !== undefined && periodRecord.periodFrom === periodFrom)
-                        ? periodRecord.approvedPrice
-                        : (periodRecord && periodRecord.approvedPrice !== undefined ? periodRecord.approvedPrice : m.approvedPrice);
+                      // Active display price: Buffer -> Period Record -> Default Row
+                      const activeApprovedPrice = editingPrices[periodKey] !== undefined
+                        ? editingPrices[periodKey]
+                        : (periodRecord && periodRecord.approvedPrice !== undefined && periodRecord.periodFrom === periodFrom
+                            ? periodRecord.approvedPrice
+                            : m.approvedPrice);
+
+                      const numericApprovedPrice = typeof activeApprovedPrice === 'number'
+                        ? activeApprovedPrice
+                        : (parseFloat(activeApprovedPrice) || 0);
 
                       const selectedAlts = (periodRecord && Array.isArray(periodRecord.selectedAlts) && periodRecord.selectedAlts.length > 0)
                         ? periodRecord.selectedAlts
@@ -847,7 +852,7 @@ export default function RMPriceMatrixPage() {
                       const { waRate, totalQty } = computeCombinedWeightedAverageWithQty(
                         selectedAlts, 
                         m.approvedCode, 
-                        currentApprovedPrice, 
+                        numericApprovedPrice, 
                         selectedVendor, 
                         periodFrom, 
                         periodTo
@@ -905,8 +910,8 @@ export default function RMPriceMatrixPage() {
                                 type="text"
                                 inputMode="decimal"
                                 className="w-20 bg-transparent font-bold text-slate-900 focus:outline-none text-xs"
-                                value={editingPrices[m.id] !== undefined ? editingPrices[m.id] : (currentApprovedPrice !== undefined ? currentApprovedPrice : (m.approvedPrice ?? ''))}
-                                onChange={(e) => handlePriceInputChange(m.id, e.target.value)}
+                                value={activeApprovedPrice !== undefined && activeApprovedPrice !== null ? activeApprovedPrice : ''}
+                                onChange={(e) => handlePriceInputChange(m.id, e.target.value, m.approvedCode)}
                                 onBlur={(e) => handlePriceInputCommit(m.id, e.target.value, m.approvedCode)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
