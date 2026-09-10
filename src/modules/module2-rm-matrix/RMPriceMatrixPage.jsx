@@ -233,6 +233,7 @@ export default function RMPriceMatrixPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [editingPrices, setEditingPrices] = useState({}); // { [rowId]: string }
   
   // Drilldown States
   const [viewingUsageMat, setViewingUsageMat] = useState(null);
@@ -349,13 +350,25 @@ export default function RMPriceMatrixPage() {
 
   const isRowDisabled = isGlobalLocked || isMatrixLocked;
 
-  const handleApprovedPriceChange = (rowId, val, approvedCode) => {
-    const numVal = val === '' ? '' : parseFloat(val);
-    
-    // 1. Update in-memory mapping row immediately
-    updateRmMappingRow(rowId, { approvedPrice: numVal === '' ? 0 : numVal });
+  const handlePriceInputChange = (rowId, rawStr) => {
+    // Keep local string state intact for smooth typing and backspacing
+    setEditingPrices(prev => ({ ...prev, [rowId]: rawStr }));
+  };
 
-    // 2. Persist to period snapshot history for this period
+  const handlePriceInputCommit = (rowId, rawStr, approvedCode) => {
+    const numVal = parseFloat(rawStr) || 0;
+    
+    // Update master mapping row
+    updateRmMappingRow(rowId, { approvedPrice: numVal });
+
+    // Clear local editing buffer for this row
+    setEditingPrices(prev => {
+      const next = { ...prev };
+      delete next[rowId];
+      return next;
+    });
+
+    // Record directly into period history snapshot
     if (!globalStore.rmPriceHistory) globalStore.rmPriceHistory = [];
     const vNorm = normalizeVendorId(selectedVendor);
     const historyKey = `${(approvedCode || '').toLowerCase().trim()}_${vNorm}_${periodFrom}_${periodTo}`;
@@ -368,7 +381,7 @@ export default function RMPriceMatrixPage() {
       vendor: selectedVendor,
       periodFrom,
       periodTo,
-      approvedPrice: numVal === '' ? 0 : numVal,
+      approvedPrice: numVal,
       archivedAt: new Date().toISOString()
     };
 
@@ -886,14 +899,21 @@ export default function RMPriceMatrixPage() {
 
                           {/* 3. Approved Price */}
                           <td className="py-3 px-4 text-center">
-                            <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-sm">
-                              <span className="text-amber-800 font-bold text-xs mr-1">₹</span>
+                            <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-sm focus-within:ring-2 focus-within:ring-amber-500">
+                              <span className="text-amber-800 font-bold text-xs mr-1 select-none">₹</span>
                               <input
-                                type="number"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 className="w-20 bg-transparent font-bold text-slate-900 focus:outline-none text-xs"
-                                value={currentApprovedPrice !== undefined ? currentApprovedPrice : (m.approvedPrice || '')}
-                                onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
+                                value={editingPrices[m.id] !== undefined ? editingPrices[m.id] : (currentApprovedPrice !== undefined ? currentApprovedPrice : (m.approvedPrice ?? ''))}
+                                onChange={(e) => handlePriceInputChange(m.id, e.target.value)}
+                                onBlur={(e) => handlePriceInputCommit(m.id, e.target.value, m.approvedCode)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handlePriceInputCommit(m.id, e.currentTarget.value, m.approvedCode);
+                                    e.currentTarget.blur();
+                                  }
+                                }}
                               />
                             </div>
                           </td>
