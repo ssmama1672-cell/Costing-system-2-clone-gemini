@@ -525,7 +525,7 @@ export default function RMPriceMatrixPage() {
       // Enterprise-wide lot key: invoiceNo + itemCode/grade + supplier + date
       const existingKeys = new Set(
         (storeState.purchases || []).map(p => 
-          `${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${(p.supplier || p.supplierName || '').trim()}_${p.date}`
+          `${(p.invoiceNo || '').trim()}_${(p.itemCode || p.grade || '').trim()}_${(p.supplier || p.supplierName || '').trim()}_${p.date}_${Number(p.qty || 0)}_${Number(p.rate || 0)}`
         )
       );
 
@@ -543,7 +543,7 @@ export default function RMPriceMatrixPage() {
         const rate = parseFloat(d["Purchase Rate (₹/Kg)"] || d.Rate || d.rate || 0);
         const rowVendor = d["Vendor"] || d.vendor || 'ALL_VENDORS';
 
-        const key = `${invoiceNo}_${itemCode || grade}_${supplier}_${parsedDate}`;
+        const key = `${invoiceNo}_${itemCode || grade}_${supplier}_${parsedDate}_${qty}_${rate}`;
 
         const record = {
           date: parsedDate,
