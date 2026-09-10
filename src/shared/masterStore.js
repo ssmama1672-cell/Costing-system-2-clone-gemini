@@ -108,7 +108,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   const isoFrom = toComparableIsoDate(periodFrom);
   const isoTo = toComparableIsoDate(periodTo);
 
-  // DIRECT STRING MATCHING (Zero normalization on alternate strings)
+  // DIRECT STRING PIVOT (No string normalization, no tokenization)
   const matchedInwards = [];
   purchases.forEach((p, idx) => {
     const pGrade = (p.grade || '').trim();
@@ -118,14 +118,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     const isMatch = selectedCodesArray.some(rawSelected => {
       if (!rawSelected) return false;
       const target = rawSelected.toString().trim();
-      return (
-        pGrade === target ||
-        pItem === target ||
-        target.includes(pGrade) ||
-        target.includes(pItem) ||
-        (pGrade && pGrade.includes(target)) ||
-        (pItem && pItem.includes(target))
-      );
+      return pGrade === target || pItem === target || target === `${pItem} ${pGrade}`.trim();
     });
 
     if (isMatch) {
@@ -165,7 +158,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   );
 
   let lotsToCalculate = [];
-  if (currentPeriodLots.length > 2) {
+  if (currentPeriodLots.length > 0) {
     lotsToCalculate = currentPeriodLots;
   } else {
     // FIFO lookback: up to 7 most recent lots on or before periodTo

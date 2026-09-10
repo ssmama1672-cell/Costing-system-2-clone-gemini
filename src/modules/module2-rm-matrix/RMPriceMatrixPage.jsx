@@ -391,7 +391,6 @@ export default function RMPriceMatrixPage() {
   };
 
   const handleToggleAltOption = (rowId, currentSelectedArray, toggledCode, approvedCode, approvedPrice) => {
-    if (isRowDisabled) return;
     let updatedArray = [...(currentSelectedArray || [])];
 
     if (updatedArray.includes(toggledCode)) {
@@ -404,7 +403,14 @@ export default function RMPriceMatrixPage() {
       updatedArray = [approvedCode];
     }
 
-    const { waRate } = computeCombinedWeightedAverageWithQty(updatedArray, approvedCode, approvedPrice, selectedVendor);
+    const { waRate } = computeCombinedWeightedAverageWithQty(
+      updatedArray, 
+      approvedCode, 
+      approvedPrice, 
+      selectedVendor, 
+      periodFrom, 
+      periodTo
+    );
 
     updateRmMappingRow(rowId, { 
       selectedAlts: updatedArray,
