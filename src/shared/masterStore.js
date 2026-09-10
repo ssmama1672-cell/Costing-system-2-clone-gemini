@@ -83,7 +83,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Extract explicit lot codes: e.g. RM0401, RM0018, HIPS SH731, HIPS SH03
+  // Extract clean target tokens from selected codes
   const targetCodes = [];
   selectedCodesArray.forEach(code => {
     if (!code) return;
@@ -93,8 +93,6 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     // Extract primary identifiers like RM0401, RM0018, etc.
     const rmMatch = s.match(/RM[0-9A-Za-z_-]+/i);
     if (rmMatch) targetCodes.push(rmMatch[0].toLowerCase());
-    
-    // Also include normalized main code string
     targetCodes.push(s.toLowerCase());
   });
 
@@ -111,7 +109,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
 
     const matches = targetCodes.some(t => {
       if (!t) return false;
-      return pItem === t || pGrade === t || pItem.includes(t) || pGrade.includes(t) || t.includes(pItem) || t.includes(pGrade);
+      return pItem === t || pGrade === t || pItem.includes(t) || pGrade.includes(t);
     });
 
     if (matches) {

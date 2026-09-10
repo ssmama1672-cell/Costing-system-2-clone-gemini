@@ -798,7 +798,6 @@ export default function RMPriceMatrixPage() {
                       const usingProds = getProductsUsingMaterial(m.approvedCode, selectedVendor);
                       const periodRecord = getHistoricalRmRecord(m.approvedCode, selectedVendor, periodFrom, periodTo);
                       
-                      // For this period: use exact period snapshot price, or base mapping price
                       const currentApprovedPrice = (periodRecord && periodRecord.approvedPrice !== undefined && periodRecord.periodFrom === periodFrom)
                         ? periodRecord.approvedPrice
                         : (periodRecord && periodRecord.approvedPrice !== undefined ? periodRecord.approvedPrice : m.approvedPrice);
@@ -862,17 +861,16 @@ export default function RMPriceMatrixPage() {
 
                           {/* 3. Approved Price */}
                         <td className="py-3 px-4 text-center">
-                          <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-2xs">
-                            <span className="text-amber-950 font-bold mr-1">₹</span>
-                            <input
-                              type="number"
-                              step="0.01"
-                              disabled={isRowDisabled}
-                              value={typeof currentApprovedPrice !== 'undefined' ? currentApprovedPrice : (m.approvedPrice || '')}
-                              onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
-                              className="w-16 bg-transparent font-black text-amber-950 text-center outline-hidden"
-                            />
-                          </div>
+                          <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-sm">
+                              <span className="text-amber-800 font-bold text-xs mr-1">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-20 bg-transparent font-bold text-slate-900 focus:outline-none text-xs"
+                                value={currentApprovedPrice !== undefined ? currentApprovedPrice : (m.approvedPrice || '')}
+                                onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
+                              />
+                            </div>
                         </td>
 
                         {/* 3. Searchable Multi-Select Alternate Lots (Showing Clickable Qty Drilldown) */}
