@@ -103,6 +103,15 @@ export default function MISVariancePage() {
   });
 
   const productSummaryList = Object.values(productSummaryMap);
+  const searchedProductSummaryList = productSummaryList.filter(p => {
+    if (!misSearchQuery || !misSearchQuery.trim()) return true;
+    const q = misSearchQuery.toLowerCase();
+    return (
+      (p.partCode || "").toLowerCase().includes(q) ||
+      (p.componentName || "").toLowerCase().includes(q) ||
+      (p.vendor || "").toLowerCase().includes(q)
+    );
+  });
   const totalCostGainLoss = totalApprovedCost - totalActualCost;
   const grossProfit = totalRevenue - totalActualCost;
   const grossMarginPct = totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0';
@@ -370,7 +379,7 @@ export default function MISVariancePage() {
                   </td>
                 </tr>
               ) : (
-                productSummaryList.map((p, idx) => (
+                searchedProductSummaryList.map((p, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition font-medium">
                     {/* Part Code with Read-Only Spec Drilldown */}
                     <td className="py-2.5 px-3">
