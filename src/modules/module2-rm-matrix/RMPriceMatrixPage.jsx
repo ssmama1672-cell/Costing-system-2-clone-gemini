@@ -249,6 +249,9 @@ function SearchableMultiSelect({
 }
 
 export default function RMPriceMatrixPage() {
+  const [rmSearchQuery, setRmSearchQuery] = useState('');
+  const [purchaseSearchQuery, setPurchaseSearchQuery] = useState('');
+  const [salesSearchQuery, setSalesSearchQuery] = useState('');
   const [storeState, setStoreState] = useState(globalStore);
   const [activeTab, setActiveTab] = useState('matrix');
   const [selectedVendor, setSelectedVendor] = useState('Haier Appliances');
