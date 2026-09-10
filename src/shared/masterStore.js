@@ -1137,3 +1137,21 @@ export function getHistoricalRmRecord(approvedCode, vendor, periodFrom, periodTo
 
   return null;
 }
+
+export function purgeAllDevTempData() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const keysToRemove = [
+      'globalStore_purchases',
+      'globalStore_sales',
+      'globalStore_rmMappingsData',
+      'globalStore_rmPriceHistory',
+      'globalStore_auditLogs',
+      'costing_app_store_v2',
+      'costing_app_master_store',
+      'costing_app_purchases',
+      'costing_app_sales'
+    ];
+    keysToRemove.forEach(k => window.localStorage.removeItem(k));
+    if (window.sessionStorage) window.sessionStorage.clear();
+  }
+}
