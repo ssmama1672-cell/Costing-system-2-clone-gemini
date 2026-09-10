@@ -316,13 +316,8 @@ export default function RMPriceMatrixPage() {
     (selectedVendor === 'ALL' || normalizeVendorId(r.vendor) === currentVendorNorm)
   );
 
-  const purchases = (storeState.purchases || []).filter(p => 
-    selectedVendor === 'ALL' || normalizeVendorId(p.vendor) === currentVendorNorm
-  );
-
-  const sales = (storeState.sales || []).filter(s => 
-    selectedVendor === 'ALL' || normalizeVendorId(s.vendor) === currentVendorNorm
-  );
+  const purchases = storeState.purchases || [];
+  const sales = storeState.sales || [];
 
   const auditLogs = (storeState.auditLogs || []).filter(l => 
     l.partCode === 'RM_MATRIX' || 

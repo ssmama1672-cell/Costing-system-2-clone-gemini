@@ -889,42 +889,34 @@ export function toggleMatrixLock() {
 
 export function addDayWisePurchase(rec) {
   globalStore.purchases = globalStore.purchases || [];
-  globalStore.purchases.unshift(rec);
+  const newRec = {
+    ...rec,
+    id: rec.id || ('pur_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)),
+    vendor: rec.vendor || 'ALL_VENDORS',
+    supplier: rec.supplier || rec.supplierName || '',
+    qty: Number(rec.qty || 0),
+    rate: Number(rec.rate || 0),
+    type: rec.type || 'RM'
+  };
+  globalStore.purchases.unshift(newRec);
+  saveToLocalStorage();
   notifyStore();
-
-  if (supabase) {
-    supabase.from('purchases').insert({
-      date: rec.date || '2026-08-15',
-      vendor: rec.vendor || 'Haier Appliances',
-      supplier: rec.supplier || rec.supplierName || '',
-      invoice_no: rec.invoiceNo || '',
-      item_code: rec.itemCode || '',
-      grade: rec.grade || '',
-      qty: Number(rec.qty || 0),
-      rate: Number(rec.rate || 0),
-      type: rec.type || 'RM'
-    }).then(null, console.error);
-  }
   return { success: true };
 }
 
 export function addDayWiseSales(rec) {
   globalStore.sales = globalStore.sales || [];
-  globalStore.sales.unshift(rec);
+  const newRec = {
+    ...rec,
+    id: rec.id || ('sale_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)),
+    vendor: rec.vendor || 'ALL_VENDORS',
+    qty: Number(rec.qty || 0),
+    rate: Number(rec.rate || rec.sellingPrice || 0),
+    amount: Number(rec.amount || (Number(rec.qty || 0) * Number(rec.rate || rec.sellingPrice || 0)))
+  };
+  globalStore.sales.unshift(newRec);
+  saveToLocalStorage();
   notifyStore();
-
-  if (supabase) {
-    supabase.from('sales').insert({
-      date: rec.date || '2026-08-15',
-      vendor: rec.vendor || 'Haier Appliances',
-      item_code: rec.itemCode || '',
-      invoice_no: rec.invoiceNo || '',
-      component_name: rec.componentName || '',
-      qty: Number(rec.qty || 0),
-      rate: Number(rec.rate || rec.sellingPrice || 0),
-      amount: Number(rec.amount || (Number(rec.qty || 0) * Number(rec.rate || rec.sellingPrice || 0)))
-    }).then(null, console.error);
-  }
   return { success: true };
 }
 
