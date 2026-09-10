@@ -1,4 +1,26 @@
 
+export function toComparableIsoDate(raw) {
+  if (!raw) return '';
+  if (typeof raw === 'number' && raw > 20000) {
+    const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+    return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  }
+  const str = String(raw).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  const parts = str.split(/[-/]/);
+  if (parts.length === 3) {
+    // YYYY-MM-DD
+    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    // DD-MM-YYYY
+    if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    // DD-MM-YY (e.g. 15-07-26 -> 2026-07-15)
+    if (parts[2].length === 2) return `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+}
+
+
 // INITIAL_SAMPLE_SALES_SEEDED
 // No mock sample sales in production
 
@@ -83,7 +105,10 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // DIRECT STRING MATCHING ONLY (Zero normalization, zero token manipulation)
+  const isoFrom = toComparableIsoDate(periodFrom);
+  const isoTo = toComparableIsoDate(periodTo);
+
+  // DIRECT STRING MATCHING (Zero normalization on alternate strings)
   const matchedInwards = [];
   purchases.forEach((p, idx) => {
     const pGrade = (p.grade || '').trim();
@@ -93,7 +118,6 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     const isMatch = selectedCodesArray.some(rawSelected => {
       if (!rawSelected) return false;
       const target = rawSelected.toString().trim();
-      // Direct string comparison: exact match or direct containment
       return (
         pGrade === target ||
         pItem === target ||
@@ -105,10 +129,12 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     });
 
     if (isMatch) {
-      const onOrBefore = !periodTo || !p.date || p.date <= periodTo;
+      const pIso = toComparableIsoDate(p.date);
+      const onOrBefore = !isoTo || !pIso || pIso <= isoTo;
       if (onOrBefore) {
         matchedInwards.push({
           ...p,
+          _isoDate: pIso,
           _uid: p.id || `${pInv}_${pItem}_${p.date}_${idx}`,
           numQty: Number(p.qty || p.quantity || 0),
           numRate: Number(p.rate || p.netRate || p.price || 0)
@@ -121,21 +147,21 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Deduplicate by invoice & item code
+  // Deduplicate by invoice, item, and rate
   const dedupedMap = new Map();
   matchedInwards.forEach(p => {
-    const key = `${p.invoiceNo || ''}_${p.itemCode || ''}_${p.grade || ''}_${p.date}_${p.numRate}_${p.numQty}`;
+    const key = `${p.invoiceNo || ''}_${p.itemCode || ''}_${p.grade || ''}_${p._isoDate}_${p.numRate}_${p.numQty}`;
     if (!dedupedMap.has(key)) dedupedMap.set(key, p);
   });
   const dedupedList = Array.from(dedupedMap.values());
 
   // Sort descending by date (most recent first)
-  dedupedList.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  dedupedList.sort((a, b) => (b._isoDate || '').localeCompare(a._isoDate || ''));
 
   // Separate current period invoices
   const currentPeriodLots = dedupedList.filter(p =>
-    (!periodFrom || !p.date || p.date >= periodFrom) &&
-    (!periodTo || !p.date || p.date <= periodTo)
+    (!isoFrom || !p._isoDate || p._isoDate >= isoFrom) &&
+    (!isoTo || !p._isoDate || p._isoDate <= isoTo)
   );
 
   let lotsToCalculate = [];

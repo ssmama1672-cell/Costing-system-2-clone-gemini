@@ -8,11 +8,12 @@ function parseSafeDate(raw) {
   }
   const str = String(raw).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  // Handle DD-MM-YYYY or DD/MM/YYYY
+  // Support DD-MM-YYYY, DD/MM/YYYY, DD-MM-YY, DD/MM/YY
   const parts = str.split(/[-/]/);
   if (parts.length === 3) {
     if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
     if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    if (parts[2].length === 2) return `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
   }
   const parsed = new Date(str);
   return isNaN(parsed.getTime()) ? new Date().toISOString().slice(0, 10) : parsed.toISOString().slice(0, 10);
