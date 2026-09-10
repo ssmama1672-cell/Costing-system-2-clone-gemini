@@ -899,7 +899,7 @@ export function addDayWisePurchase(rec) {
     type: rec.type || 'RM'
   };
   globalStore.purchases.unshift(newRec);
-  saveToLocalStorage();
+  if (typeof persistCurrentStore === 'function') persistCurrentStore();
   notifyStore();
   return { success: true };
 }
@@ -915,7 +915,7 @@ export function addDayWiseSales(rec) {
     amount: Number(rec.amount || (Number(rec.qty || 0) * Number(rec.rate || rec.sellingPrice || 0)))
   };
   globalStore.sales.unshift(newRec);
-  saveToLocalStorage();
+  if (typeof persistCurrentStore === 'function') persistCurrentStore();
   notifyStore();
   return { success: true };
 }
@@ -1154,4 +1154,39 @@ export function purgeAllDevTempData() {
     keysToRemove.forEach(k => window.localStorage.removeItem(k));
     if (window.sessionStorage) window.sessionStorage.clear();
   }
+}
+
+export function bulkAddDayWisePurchases(records = []) {
+  if (!Array.isArray(records) || records.length === 0) return { success: true, count: 0 };
+  globalStore.purchases = globalStore.purchases || [];
+  const prepared = records.map((rec, i) => ({
+    ...rec,
+    id: rec.id || ('pur_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5)),
+    vendor: rec.vendor || 'ALL_VENDORS',
+    supplier: rec.supplier || rec.supplierName || '',
+    qty: Number(rec.qty || 0),
+    rate: Number(rec.rate || 0),
+    type: rec.type || 'RM'
+  }));
+  globalStore.purchases = [...prepared, ...globalStore.purchases];
+  if (typeof persistCurrentStore === 'function') persistCurrentStore();
+  notifyStore();
+  return { success: true, count: prepared.length };
+}
+
+export function bulkAddDayWiseSales(records = []) {
+  if (!Array.isArray(records) || records.length === 0) return { success: true, count: 0 };
+  globalStore.sales = globalStore.sales || [];
+  const prepared = records.map((rec, i) => ({
+    ...rec,
+    id: rec.id || ('sale_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substr(2, 5)),
+    vendor: rec.vendor || 'ALL_VENDORS',
+    qty: Number(rec.qty || 0),
+    rate: Number(rec.rate || rec.sellingPrice || 0),
+    amount: Number(rec.amount || (Number(rec.qty || 0) * Number(rec.rate || rec.sellingPrice || 0)))
+  }));
+  globalStore.sales = [...prepared, ...globalStore.sales];
+  if (typeof persistCurrentStore === 'function') persistCurrentStore();
+  notifyStore();
+  return { success: true, count: prepared.length };
 }

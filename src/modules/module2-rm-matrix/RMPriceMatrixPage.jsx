@@ -71,7 +71,7 @@ import {
   updateRmMappingRow, 
   deleteVendorMaterial, 
   getProductsUsingMaterial, 
-  addDayWisePurchase, 
+  addDayWisePurchase, bulkAddDayWisePurchases, bulkAddDayWiseSales, 
   addDayWiseSales, 
   toggleGlobalLock, 
   toggleMatrixLock, 
@@ -351,14 +351,27 @@ export default function RMPriceMatrixPage() {
   
   const handleCommitStaging = () => {
     if (!stagingData) return;
-    if (stagingData.type === 'purchase') {
-      stagingData.unique.forEach(r => addDayWisePurchase(r));
-    } else if (stagingData.type === 'sales') {
-      stagingData.unique.forEach(r => addDayWiseSales(r));
+    try {
+      if (stagingData.type === 'purchase') {
+        if (typeof bulkAddDayWisePurchases === 'function') {
+          bulkAddDayWisePurchases(stagingData.unique || []);
+        } else {
+          (stagingData.unique || []).forEach(r => addDayWisePurchase(r));
+        }
+      } else if (stagingData.type === 'sales') {
+        if (typeof bulkAddDayWiseSales === 'function') {
+          bulkAddDayWiseSales(stagingData.unique || []);
+        } else {
+          (stagingData.unique || []).forEach(r => addDayWiseSales(r));
+        }
+      }
+      setSaveSuccessMsg(`✓ Staging Committed: Added ${(stagingData.unique || []).length} unique records (${(stagingData.duplicates || []).length} duplicates skipped)`);
+    } catch (err) {
+      console.error('Commit staging error:', err);
+    } finally {
+      setStagingData(null);
+      setTimeout(() => setSaveSuccessMsg(''), 4000);
     }
-    setSaveSuccessMsg(`✓ Staging Committed: Added ${stagingData.unique.length} unique records (${stagingData.duplicates.length} duplicates skipped)`);
-    setStagingData(null);
-    setTimeout(() => setSaveSuccessMsg(''), 4000);
   };
 
   const handleToggleMatrixLock = () => {
