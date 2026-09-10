@@ -311,13 +311,37 @@ export default function RMPriceMatrixPage() {
 
   const currentVendorNorm = normalizeVendorId(selectedVendor);
 
-  const vendorMaterials = (storeState.rmMappingsData || []).filter(r => 
+  const rawVendorMaterials = (storeState.rmMappingsData || []).filter(r => 
     !isInvalidMaterialCode(r.approvedCode) && 
     (selectedVendor === 'ALL' || normalizeVendorId(r.vendor) === currentVendorNorm)
   );
+  const vendorMaterials = rawVendorMaterials.filter(r => {
+    if (!rmSearchQuery.trim()) return true;
+    const q = rmSearchQuery.toLowerCase();
+    return (r.approvedCode || '').toLowerCase().includes(q) || (r.materialType || '').toLowerCase().includes(q);
+  });
 
-  const purchases = storeState.purchases || [];
-  const sales = storeState.sales || [];
+  const rawPurchases = storeState.purchases || [];
+  const purchases = rawPurchases.filter(p => {
+    if (!purchaseSearchQuery.trim()) return true;
+    const q = purchaseSearchQuery.toLowerCase();
+    return (
+      (p.invoiceNo || '').toLowerCase().includes(q) ||
+      (p.supplier || p.supplierName || '').toLowerCase().includes(q) ||
+      (p.itemCode || '').toLowerCase().includes(q) ||
+      (p.grade || '').toLowerCase().includes(q)
+    );
+  });
+  const rawSales = storeState.sales || [];
+  const sales = rawSales.filter(s => {
+    if (!salesSearchQuery.trim()) return true;
+    const q = salesSearchQuery.toLowerCase();
+    return (
+      (s.invoiceNo || '').toLowerCase().includes(q) ||
+      (s.componentName || '').toLowerCase().includes(q) ||
+      (s.itemCode || '').toLowerCase().includes(q)
+    );
+  });
 
   const auditLogs = (storeState.auditLogs || []).filter(l => 
     l.partCode === 'RM_MATRIX' || 
@@ -851,7 +875,19 @@ export default function RMPriceMatrixPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-slate-900 text-white uppercase font-bold text-[10px] sticky top-0 z-20 shadow-md">
                 <tr>
-                  <th className="py-3 px-4 w-72">APPROVED RM/MB CODE & USAGE</th>
+                  <th className="py-3 px-4 w-72">
+      <div className="flex flex-col gap-1.5">
+        <span>APPROVED RM/MB CODE & USAGE</span>
+        <input
+          type="text"
+          value={rmSearchQuery}
+          onChange={e => setRmSearchQuery(e.target.value)}
+          placeholder="🔍 Search RM/MB Code..."
+          onClick={e => e.stopPropagation()}
+          className="w-full px-2 py-1 text-[11px] font-normal text-slate-800 bg-white border border-slate-300 rounded-md shadow-inner placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+      </div>
+    </th>
                   <th className="py-3 px-4 text-center w-32 bg-slate-800 text-slate-300">PREV APPROVED (₹/KG)</th>
    <th className="py-3 px-4 text-center w-36">APPROVED PRICE (₹/KG)</th>
                   <th className="py-3 px-4">SEARCHABLE ALTERNATE RM LOTS (WITH INWARD QTY DRILLDOWN)</th>
@@ -1021,7 +1057,16 @@ export default function RMPriceMatrixPage() {
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-wrap justify-between items-center gap-2 border-b border-slate-100 pb-3">
-              <span className="font-black text-slate-900 text-xs uppercase">Add Purchase Inward ({selectedVendor})</span>
+              <div className="flex items-center gap-3">
+      <span className="font-black text-slate-900 text-xs uppercase">Add Purchase Inward ({selectedVendor})</span>
+      <input
+        type="text"
+        value={purchaseSearchQuery}
+        onChange={e => setPurchaseSearchQuery(e.target.value)}
+        placeholder="🔍 Search Purchases (Inv / Supplier / RM)..."
+        className="px-3 py-1 text-xs border border-slate-300 rounded-xl w-64 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDownloadPurchaseTemplate}
@@ -1138,7 +1183,16 @@ export default function RMPriceMatrixPage() {
         <div className="space-y-4">
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
             <div className="flex flex-wrap justify-between items-center gap-2 border-b border-slate-100 pb-3">
-              <span className="font-black text-slate-900 text-xs uppercase">Add Dispatch Sale ({selectedVendor})</span>
+              <div className="flex items-center gap-3">
+      <span className="font-black text-slate-900 text-xs uppercase">Add Dispatch Sale ({selectedVendor})</span>
+      <input
+        type="text"
+        value={salesSearchQuery}
+        onChange={e => setSalesSearchQuery(e.target.value)}
+        placeholder="🔍 Search Sales (Inv / Component / Part)..."
+        className="px-3 py-1 text-xs border border-slate-300 rounded-xl w-64 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDownloadSalesTemplate}

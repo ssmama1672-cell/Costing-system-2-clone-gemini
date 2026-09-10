@@ -302,6 +302,13 @@ export default function MISVariancePage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={misSearchQuery}
+              onChange={e => setMisSearchQuery(e.target.value)}
+              placeholder="🔍 Search Part / Component..."
+              className="px-2.5 py-1 bg-slate-800 text-white placeholder-slate-400 border border-slate-700 rounded-lg text-xs font-medium focus:outline-none focus:border-blue-500 w-52"
+            />
             <span className="text-slate-300 font-bold">Vendor:</span>
             <select
               value={selectedVendor}
@@ -355,7 +362,7 @@ export default function MISVariancePage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {productSummaryList.length === 0 ? (
+              {searchedProductSummaryList.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-10 text-center text-slate-500 font-bold">
                     No sales transactions recorded for the selected period.
