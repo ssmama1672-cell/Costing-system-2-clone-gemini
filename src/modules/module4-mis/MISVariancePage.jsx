@@ -20,6 +20,7 @@ import { calculateDetailedCost } from '../module1-baseline/InlineEditModal';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
 export default function MISVariancePage() {
+  const [misSearchQuery, setMisSearchQuery] = useState('');
   const [storeState, setStoreState] = useState(globalStore);
   const [selectedVendor, setSelectedVendor] = useState('ALL');
   const [drilldownVendor, setDrilldownVendor] = useState('Haier Appliances');
