@@ -9,15 +9,28 @@ export function toComparableIsoDate(raw) {
   if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
   const parts = str.split(/[-/]/);
   if (parts.length === 3) {
-    // YYYY-MM-DD
-    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-    // DD-MM-YYYY
-    if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-    // DD-MM-YY (e.g. 15-07-26 -> 2026-07-15)
-    if (parts[2].length === 2) return `20${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    let y = parts[0], m = parts[1], d = parts[2];
+    if (parts[2].length === 4) {
+      y = parts[2];
+      m = parts[1];
+      d = parts[0];
+    } else if (parts[2].length === 2) {
+      y = '20' + parts[2];
+      m = parts[1];
+      d = parts[0];
+    }
+    // Clamp day to valid month max (e.g. 31st of June -> 30th)
+    const yearNum = parseInt(y, 10);
+    const monthNum = parseInt(m, 10);
+    let dayNum = parseInt(d, 10);
+    if (!isNaN(yearNum) && !isNaN(monthNum) && !isNaN(dayNum)) {
+      const maxDays = new Date(yearNum, monthNum, 0).getDate();
+      if (dayNum > maxDays) dayNum = maxDays;
+      return `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    }
   }
-  const d = new Date(str);
-  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  const dt = new Date(str);
+  return isNaN(dt.getTime()) ? '' : dt.toISOString().slice(0, 10);
 }
 
 
@@ -108,7 +121,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   const isoFrom = toComparableIsoDate(periodFrom);
   const isoTo = toComparableIsoDate(periodTo);
 
-  // DIRECT STRING PIVOT (No string normalization, no tokenization)
+  // DIRECT STRING MATCH (No token manipulation, no string mutation)
   const matchedInwards = [];
   purchases.forEach((p, idx) => {
     const pGrade = (p.grade || '').trim();
@@ -118,7 +131,14 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     const isMatch = selectedCodesArray.some(rawSelected => {
       if (!rawSelected) return false;
       const target = rawSelected.toString().trim();
-      return pGrade === target || pItem === target || target === `${pItem} ${pGrade}`.trim();
+      return (
+        pGrade === target ||
+        pItem === target ||
+        (pGrade && target.includes(pGrade)) ||
+        (pItem && target.includes(pItem)) ||
+        (pGrade && pGrade.includes(target)) ||
+        (pItem && pItem.includes(target))
+      );
     });
 
     if (isMatch) {
@@ -140,7 +160,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
     return { waRate: Number(approvedPrice || 0), totalQty: 0, count: 0 };
   }
 
-  // Deduplicate by invoice, item, and rate
+  // Deduplicate matched records by invoice, item, and rate
   const dedupedMap = new Map();
   matchedInwards.forEach(p => {
     const key = `${p.invoiceNo || ''}_${p.itemCode || ''}_${p.grade || ''}_${p._isoDate}_${p.numRate}_${p.numQty}`;
@@ -151,7 +171,7 @@ export function computeCombinedWeightedAverageWithQty(selectedCodesArray = [], a
   // Sort descending by date (most recent first)
   dedupedList.sort((a, b) => (b._isoDate || '').localeCompare(a._isoDate || ''));
 
-  // Separate current period invoices
+  // Filter purchases occurring strictly within the current period
   const currentPeriodLots = dedupedList.filter(p =>
     (!isoFrom || !p._isoDate || p._isoDate >= isoFrom) &&
     (!isoTo || !p._isoDate || p._isoDate <= isoTo)
