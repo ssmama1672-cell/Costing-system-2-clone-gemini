@@ -349,9 +349,34 @@ export default function RMPriceMatrixPage() {
 
   const isRowDisabled = isGlobalLocked || isMatrixLocked;
 
-  const handleApprovedPriceChange = (rowId, val) => {
-    if (isRowDisabled) return;
-    updateRmMappingRow(rowId, { approvedPrice: parseFloat(val) || 0 });
+  const handleApprovedPriceChange = (rowId, val, approvedCode) => {
+    const numVal = val === '' ? '' : parseFloat(val);
+    
+    // 1. Update in-memory mapping row immediately
+    updateRmMappingRow(rowId, { approvedPrice: numVal === '' ? 0 : numVal });
+
+    // 2. Persist to period snapshot history for this period
+    if (!globalStore.rmPriceHistory) globalStore.rmPriceHistory = [];
+    const vNorm = normalizeVendorId(selectedVendor);
+    const historyKey = `${(approvedCode || '').toLowerCase().trim()}_${vNorm}_${periodFrom}_${periodTo}`;
+    const existIdx = globalStore.rmPriceHistory.findIndex(h => h.historyKey === historyKey);
+    
+    const snap = {
+      historyKey,
+      materialCode: approvedCode,
+      type: 'RM',
+      vendor: selectedVendor,
+      periodFrom,
+      periodTo,
+      approvedPrice: numVal === '' ? 0 : numVal,
+      archivedAt: new Date().toISOString()
+    };
+
+    if (existIdx >= 0) {
+      globalStore.rmPriceHistory[existIdx] = { ...globalStore.rmPriceHistory[existIdx], ...snap };
+    } else {
+      globalStore.rmPriceHistory.push(snap);
+    }
   };
 
   const handleToggleAltOption = (rowId, currentSelectedArray, toggledCode, approvedCode, approvedPrice) => {
@@ -860,8 +885,8 @@ export default function RMPriceMatrixPage() {
                           </td>
 
                           {/* 3. Approved Price */}
-                        <td className="py-3 px-4 text-center">
-                          <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-sm">
+                          <td className="py-3 px-4 text-center">
+                            <div className="inline-flex items-center bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 shadow-sm">
                               <span className="text-amber-800 font-bold text-xs mr-1">₹</span>
                               <input
                                 type="number"
@@ -871,7 +896,7 @@ export default function RMPriceMatrixPage() {
                                 onChange={(e) => handleApprovedPriceChange(m.id, e.target.value, m.approvedCode)}
                               />
                             </div>
-                        </td>
+                          </td>
 
                         {/* 3. Searchable Multi-Select Alternate Lots (Showing Clickable Qty Drilldown) */}
                         <td className="py-3 px-4">
