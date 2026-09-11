@@ -13,14 +13,15 @@ import {
   Globe,
   Database,
   MessageSquare,
-  Bot
+  Bot,
+  Search
 } from "lucide-react";
 import { globalStore, subscribeStore } from "../../shared/masterStore";
 import { executeAIAnalysis } from "./aiService";
 
 export default function AIAnalystPage() {
   const [store, setStore] = useState({ ...globalStore });
-  const [engineMode, setEngineMode] = useState("auto"); // "auto" | "gemini" | "groq"
+  const [engineMode, setEngineMode] = useState("auto");
   const [selectedVendor, setSelectedVendor] = useState("all");
   const [promptText, setPromptText] = useState("");
   
@@ -35,14 +36,12 @@ export default function AIAnalystPage() {
     return () => unsub();
   }, []);
 
-  // Normalize vendor objects safely
   const vendorList = (store.vendors && store.vendors.length > 0 ? store.vendors : [
     { vendorId: "Haier Appliances", vendorName: "Haier Appliances" },
     { vendorId: "Atomberg Technologies", vendorName: "Atomberg Technologies" },
     { vendorId: "Atharva Polymer", vendorName: "Atharva Polymer (Haier)" }
   ]).map(v => typeof v === "object" ? { id: v.vendorId || v.id || "", name: v.vendorName || v.name || "" } : { id: v, name: v });
 
-  // Read-only database slices
   const allProducts = store.baselineProducts || [];
   const allPurchases = store.purchases || [];
   const allSales = store.sales || [];
@@ -61,7 +60,6 @@ export default function AIAnalystPage() {
     setAnalysisResult(null);
     setMetaInfo(null);
 
-    // Read-only DB snapshot
     const dbSnapshot = {
       selectedScope: selectedVendor === "all" ? "Entire Enterprise Database" : selectedVendor,
       counts: {
@@ -96,14 +94,14 @@ export default function AIAnalystPage() {
       }))
     };
 
-    const systemPrompt = "You are Srikants, the Chief Enterprise AI Costing Controller & Industrial Intelligence Analyst for high-precision injection moulding & manufacturing.\n" +
-      "1. You have strictly READ-ONLY access to the enterprise internal database snapshot provided.\n" +
-      "2. Answer ANY open-ended analytical, costing, operational, or trend query with deep precision.\n" +
-      "3. MULTILINGUAL MASTERY: Detect the language of the user prompt (English, Hindi, Marathi, etc.) and respond fluently in that exact language.\n" +
-      "4. DATA STRUCTURING: Whenever comparing prices, variances, or trends, structure output with clean Markdown Tables, bold key metrics, and actionable recommendations.\n" +
-      "5. If database arrays currently have 0 rows, clearly explain that the system is clean and ready for inward transaction uploads.";
+    const systemPrompt = "You are Srikants, the Enterprise AI Industrial Copilot & Costing Intelligence Analyst.\n" +
+      "1. PRIMARY FOCUS: Internal Enterprise Costing Database (read-only snapshot provided below). Prioritize internal baseline numbers, inward purchases, RM grades, and BOM records for all enterprise queries.\n" +
+      "2. OPEN WEB SEARCH & GENERAL KNOWLEDGE: If the user asks general, world, polymer market commodity price, technical definition, or open-web questions, use your live search capabilities and knowledge to provide up-to-date answers.\n" +
+      "3. MULTILINGUAL SUPPORT: Full fluency in English, Odia (ଓଡ଼ିଆ), Marathi (मराठी), and Hindi (हिंदी). You MUST detect the input language and respond in that exact language (e.g. if the user writes in Odia, answer completely in fluent Odia script).\n" +
+      "4. DATA PRESENTATION: Format outputs with clean Markdown, clear bold section headers, and comparison tables where helpful.\n" +
+      "5. If internal database arrays currently have 0 rows, clearly state that internal records are currently clean and awaiting transaction imports.";
 
-    const fullUserPrompt = "ENTERPRISE READ-ONLY DB SNAPSHOT:\n" + JSON.stringify(dbSnapshot, null, 2) + "\n\nUSER QUESTION / TASK:\n" + taskPrompt;
+    const fullUserPrompt = "ENTERPRISE READ-ONLY DB CONTEXT:\n" + JSON.stringify(dbSnapshot, null, 2) + "\n\nUSER QUERY / INSTRUCTION:\n" + taskPrompt;
 
     try {
       const response = await executeAIAnalysis({
@@ -117,7 +115,8 @@ export default function AIAnalystPage() {
         provider: response.provider,
         model: response.model,
         failoverOccurred: response.failoverOccurred,
-        fallbackReason: response.fallbackReason
+        fallbackReason: response.fallbackReason,
+        hasGrounding: response.hasGrounding
       });
     } catch (err) {
       setErrorMsg(err.message || "Srikants AI analysis execution failed.");
@@ -126,7 +125,6 @@ export default function AIAnalystPage() {
     }
   };
 
-  // Offline File Downloads
   const downloadAsMarkdown = () => {
     if (!analysisResult) return;
     const blob = new Blob([analysisResult], { type: "text/markdown;charset=utf-8;" });
@@ -157,7 +155,7 @@ export default function AIAnalystPage() {
 
   return (
     <div className="space-y-4 text-xs font-sans">
-      {/* Top Banner with Srikants Agent Branding */}
+      {/* Top Banner */}
       <div className="bg-slate-900 text-white rounded-2xl p-4 shadow-md flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl shadow">
@@ -171,7 +169,7 @@ export default function AIAnalystPage() {
               </span>
             </div>
             <p className="text-[11px] text-slate-300">
-              Read-only internal DB synthesis &bull; Multilingual analysis (English, मराठी, हिंदी) &bull; Offline exportable audit reports
+              Internal DB synthesis (Primary) &bull; Open Web Search &bull; Multilingual (English, ଓଡ଼ିଆ, मराठी, हिंदी) &bull; Offline exports
             </p>
           </div>
         </div>
@@ -185,8 +183,8 @@ export default function AIAnalystPage() {
             onChange={e => setEngineMode(e.target.value)}
             className="bg-slate-900 text-white text-[11px] font-medium border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500"
           >
-            <option value="auto">Auto (Gemini 1st &rarr; Groq Failover)</option>
-            <option value="gemini">Google Gemini Flash Only</option>
+            <option value="auto">Auto (Gemini Search &rarr; Groq Failover)</option>
+            <option value="gemini">Google Gemini Flash + Web Search</option>
             <option value="groq">Groq Llama 3.3 70B Only</option>
           </select>
         </div>
@@ -215,30 +213,30 @@ export default function AIAnalystPage() {
             <span>Purchases: <strong className="text-slate-800">{filteredPurchases.length}</strong></span>
             <span>Sales: <strong className="text-slate-800">{filteredSales.length}</strong></span>
             <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-              <Globe className="w-3.5 h-3.5" /> English &bull; मराठी &bull; हिंदी
+              <Globe className="w-3.5 h-3.5" /> English &bull; ଓଡ଼ିଆ &bull; मराठी &bull; हिंदी
             </span>
           </div>
         </div>
 
-        {/* Query Input Area */}
+        {/* Input Area */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
               <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-              Ask Srikants Any Analytical or Operational Question:
+              Ask Srikants Any Internal Audit or Open-Web Question:
             </label>
-            <span className="text-[10px] text-slate-400">Supports English, Marathi, Hindi, etc.</span>
+            <span className="text-[10px] text-slate-400">Supports English, Odia, Marathi, Hindi</span>
           </div>
           <textarea
             rows={3}
             value={promptText}
             onChange={e => setPromptText(e.target.value)}
-            placeholder="e.g. Srikants, compare baseline RM prices with purchase inwards. (मराठीत विचारा: श्रीकांत, कच्च्या मालाच्या किमती वाढल्या आहेत का? टेबल स्वरूपात दाखवा)"
+            placeholder="e.g. Srikants, check our RM purchase rates vs baseline. Or ask: ଶ୍ରୀକାନ୍ତ, ଆମର କଞ୍ଚାମାଲ ଦର ଏବଂ ଉତ୍ପାଦନ ଖର୍ଚ୍ଚ ବିଶ୍ଳେଷଣ କରନ୍ତୁ | Or search: What is current PP/ABS polymer price in India?"
             className="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
-        {/* Quick Directives & Action Buttons */}
+        {/* Presets Bar with Odia Included */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
           <div className="flex flex-wrap gap-1.5">
             <button
@@ -255,13 +253,13 @@ export default function AIAnalystPage() {
             <button
               type="button"
               onClick={() => {
-                const q = "Srikants, analyze raw material price drift. Which grades fluctuated the most? Suggest margin recovery steps.";
+                const q = "ଶ୍ରୀକାନ୍ତ, ଆମର ସମସ୍ତ କଞ୍ଚାମାଲ (Raw Material) ଦର ଏବଂ ବେସଲାଇନ ମୂଲ୍ୟ ଯାଞ୍ଚ କରି ଓଡ଼ିଆରେ ଏକ ବିସ୍ତୃତ ଟେବୁଲ୍ ରିପୋର୍ଟ ଦିଅନ୍ତୁ |";
                 setPromptText(q);
                 handleRunAnalysis(q);
               }}
-              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-medium transition-colors"
+              className="px-2.5 py-1 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 rounded-lg text-[10px] font-semibold transition-colors"
             >
-              📈 RM Drift Analysis
+              🇮🇳 Odia (ଓଡ଼ିଆ) Audit
             </button>
             <button
               type="button"
@@ -284,6 +282,17 @@ export default function AIAnalystPage() {
               className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-medium transition-colors"
             >
               🇮🇳 Hindi Audit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const q = "Search open web: What are current market prices and weekly trends for injection molding polymers (PP, ABS, Nylon) in India?";
+                setPromptText(q);
+                handleRunAnalysis(q);
+              }}
+              className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10px] font-medium transition-colors"
+            >
+              🌐 Web Polymer Trends
             </button>
           </div>
 
@@ -308,7 +317,7 @@ export default function AIAnalystPage() {
         </div>
       </div>
 
-      {/* Error Notice */}
+      {/* Error Alert */}
       {errorMsg && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700">
           <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -319,7 +328,7 @@ export default function AIAnalystPage() {
         </div>
       )}
 
-      {/* Failover Notice */}
+      {/* Failover Indicator */}
       {metaInfo?.failoverOccurred && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-amber-800 text-[11px]">
           <div className="flex items-center gap-2">
@@ -332,7 +341,7 @@ export default function AIAnalystPage() {
         </div>
       )}
 
-      {/* Srikants Report Output & Offline Export Toolbar */}
+      {/* Srikants Report Output & Export */}
       {analysisResult && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
@@ -346,7 +355,6 @@ export default function AIAnalystPage() {
               )}
             </div>
 
-            {/* Offline Export Controls */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -386,13 +394,13 @@ export default function AIAnalystPage() {
         </div>
       )}
 
-      {/* Default Prompt Card */}
+      {/* Initial Guidance */}
       {!analysisResult && !loading && !errorMsg && (
         <div className="bg-slate-50/70 border border-dashed border-slate-300 rounded-2xl p-8 text-center space-y-3">
           <BrainCircuit className="w-10 h-10 text-slate-400 mx-auto" />
-          <h3 className="text-xs font-bold text-slate-700">Srikants AI Copilot Ready</h3>
+          <h3 className="text-xs font-bold text-slate-700">Srikants Industrial AI Ready</h3>
           <p className="text-[11px] text-slate-500 max-w-md mx-auto">
-            Ask any question in English, Marathi, or Hindi. Srikants analyzes baseline parts, inward purchase records, and sales volumes in read-only mode, with direct offline export options.
+            Primary focus on internal costing, BOM, and purchase drifts. Supports general Q&amp;A, live web searches, and full multilingual output (English, ଓଡ଼ିଆ, मराठी, हिंदी) with offline downloads.
           </p>
         </div>
       )}
