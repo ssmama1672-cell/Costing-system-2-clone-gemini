@@ -28,6 +28,13 @@ export default function AIAnalystPage() {
     return () => unsub();
   }, []);
 
+  // Normalize vendors whether they are strings or objects { vendorId, vendorName }
+  const vendorList = (store.vendors && store.vendors.length > 0 ? store.vendors : [
+    { vendorId: "Haier Appliances", vendorName: "Haier Appliances" },
+    { vendorId: "Atomberg Technologies", vendorName: "Atomberg Technologies" },
+    { vendorId: "Atharva Polymer", vendorName: "Atharva Polymer (Haier)" }
+  ]).map(v => typeof v === "object" ? { id: v.vendorId || v.id || "", name: v.vendorName || v.name || "" } : { id: v, name: v });
+
   const vendorProducts = (store.baselineProducts || []).filter(p => !selectedVendor || p.vendor === selectedVendor);
   const vendorPurchases = (store.purchases || []).filter(p => !selectedVendor || p.vendor === selectedVendor);
   const vendorSales = (store.sales || []).filter(p => !selectedVendor || p.vendor === selectedVendor);
@@ -146,8 +153,8 @@ export default function AIAnalystPage() {
               onChange={e => setSelectedVendor(e.target.value)}
               className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800"
             >
-              {(store.vendors || ["Haier Appliances", "Atomberg Technologies", "Atharva Polymer"]).map(v => (
-                <option key={v} value={v}>{v}</option>
+              {vendorList.map(v => (
+                <option key={v.id} value={v.id}>{v.name}</option>
               ))}
             </select>
           </div>
