@@ -15,7 +15,7 @@ import { Download,
   ShoppingBag
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { globalStore, subscribeStore, getActiveRmMapping, normalizeVendorId, getPeriodProductCost, getRmRateForPeriod, parseMaterialString } from '../../shared/masterStore';
+import { globalStore, subscribeStore, getActiveRmMapping, normalizeVendorId, getPeriodProductCost, resolveProductCostForDate, getRmRateForPeriod, parseMaterialString } from '../../shared/masterStore';
 import { calculateDetailedCost } from '../module1-baseline/InlineEditModal';
 import InlineEditModal from '../module1-baseline/InlineEditModal';
 
@@ -68,11 +68,16 @@ export default function MISVariancePage() {
     const code = s.itemCode || s.partCode || 'UNKNOWN';
     const qty = Number(s.qty || s.quantity || 0);
     const rev = Number(s.amount || s.totalAmount || (qty * Number(s.rate || s.price || 0)));
-    const baseProd = baselineProducts.find(b => b.itemCode === code && normalizeVendorId(b.vendor) === normalizeVendorId(s.vendor)) || {};
-    const detailed = calculateDetailedCost(baseProd);
-    
-    const approvedUnitCost = Number(detailed.approvedBaselineCost || baseProd.approvedCost || 0);
-    const actualUnitCost = Number(detailed.simulatedActualCost || detailed.finalLanded || approvedUnitCost);
+    const txDate = String(s.date || s.invoiceDate || "");
+      const periodSnap = resolveProductCostForDate(code, s.vendor, txDate);
+      const baseProd = baselineProducts.find(b => b.itemCode === code && normalizeVendorId(b.vendor) === normalizeVendorId(s.vendor)) || {};
+      const detailed = periodSnap ? {
+        approvedBaselineCost: Number(periodSnap.approvedBaselineCost || 0),
+        simulatedActualCost: Number(periodSnap.simulatedActualCost || 0)
+      } : calculateDetailedCost(baseProd);
+      
+      const approvedUnitCost = Number(detailed.approvedBaselineCost || baseProd.approvedCost || 0);
+      const actualUnitCost = Number(detailed.simulatedActualCost || detailed.finalLanded || approvedUnitCost);
     const unitGainLoss = approvedUnitCost - actualUnitCost;
 
     totalVolume += qty;
@@ -124,10 +129,15 @@ export default function MISVariancePage() {
     vSales.forEach(s => {
       const q = Number(s.qty || 0);
       const r = Number(s.amount || (q * Number(s.rate || 0)));
-      const bp = baselineProducts.find(b => b.itemCode === (s.itemCode || s.partCode) && normalizeVendorId(b.vendor) === normalizeVendorId(v.vendorId)) || {};
-      const det = calculateDetailedCost(bp);
-      const appCost = Number(det.approvedBaselineCost || bp.approvedCost || 0);
-      const actCost = Number(det.simulatedActualCost || det.finalLanded || appCost);
+      const txDate = String(s.date || s.invoiceDate || "");
+        const periodSnap = resolveProductCostForDate(s.itemCode || s.partCode, v.vendorId, txDate);
+        const bp = baselineProducts.find(b => b.itemCode === (s.itemCode || s.partCode) && normalizeVendorId(b.vendor) === normalizeVendorId(v.vendorId)) || {};
+        const det = periodSnap ? {
+          approvedBaselineCost: Number(periodSnap.approvedBaselineCost || 0),
+          simulatedActualCost: Number(periodSnap.simulatedActualCost || 0)
+        } : calculateDetailedCost(bp);
+        const appCost = Number(det.approvedBaselineCost || bp.approvedCost || 0);
+        const actCost = Number(det.simulatedActualCost || det.finalLanded || appCost);
       currentRev += r;
       currentGainLoss += ((appCost - actCost) * q);
     });
@@ -161,10 +171,14 @@ export default function MISVariancePage() {
     const rev = Number(s.amount || (qty * Number(s.rate || 0)));
     const sDate = String(s.date || s.invoiceDate || '');
 
-    const bp = baselineProducts.find(b => b.itemCode === code && normalizeVendorId(b.vendor) === normalizeVendorId(s.vendor)) || {};
-    const det = calculateDetailedCost(bp);
-    const appCost = Number(det.approvedBaselineCost || bp.approvedCost || 0);
-    const actCost = Number(det.simulatedActualCost || det.finalLanded || appCost);
+    const periodSnap = resolveProductCostForDate(code, s.vendor, sDate);
+      const bp = baselineProducts.find(b => b.itemCode === code && normalizeVendorId(b.vendor) === normalizeVendorId(s.vendor)) || {};
+      const det = periodSnap ? {
+        approvedBaselineCost: Number(periodSnap.approvedBaselineCost || 0),
+        simulatedActualCost: Number(periodSnap.simulatedActualCost || 0)
+      } : calculateDetailedCost(bp);
+      const appCost = Number(det.approvedBaselineCost || bp.approvedCost || 0);
+      const actCost = Number(det.simulatedActualCost || det.finalLanded || appCost);
     const gainLoss = (appCost - actCost) * qty;
 
     // Strict month routing

@@ -240,6 +240,151 @@ function loadPersistedStore() {
   return null;
 }
 
+
+export const VENDOR_BILLING_CONFIG = {
+  haier: {
+    vendorId: "Haier Appliances",
+    vendorName: "Haier Appliances",
+    cycleStartDay: 15
+  },
+  atomberg: {
+    vendorId: "Atomberg Technologies",
+    vendorName: "Atomberg Technologies",
+    cycleStartDay: 1
+  },
+  atharva: {
+    vendorId: "Atharva Polymer",
+    vendorName: "Atharva Polymer (Haier)",
+    cycleStartDay: 15
+  },
+  default: {
+    cycleStartDay: 1
+  }
+};
+
+export function getVendorCycleConfig(vendor = "") {
+  const norm = normalizeVendorId(vendor);
+  if (norm.includes("haier")) return VENDOR_BILLING_CONFIG.haier;
+  if (norm.includes("atomberg")) return VENDOR_BILLING_CONFIG.atomberg;
+  if (norm.includes("atharva")) return VENDOR_BILLING_CONFIG.atharva;
+  return VENDOR_BILLING_CONFIG[norm] || VENDOR_BILLING_CONFIG.default;
+}
+
+export function getVendorCalendarTiers(vendor = "", year = 2026, month = 8) {
+  const config = getVendorCycleConfig(vendor);
+  const cycleDay = Number(config.cycleStartDay || 1);
+  const y = Number(year);
+  const m = Number(month); // 1-based
+
+  // Calendar month dates
+  const pad = n => String(n).padStart(2, "0");
+  const lastDayOfMonth = new Date(y, m, 0).getDate();
+  const calStart = `${y}-${pad(m)}-01`;
+  const calEnd = `${y}-${pad(m)}-${pad(lastDayOfMonth)}`;
+
+  if (cycleDay <= 1) {
+    return [
+      {
+        tier: 1,
+        vendor,
+        dateFrom: calStart,
+        dateTo: calEnd,
+        approvalPeriodFrom: calStart,
+        approvalPeriodTo: calEnd,
+        label: `Full Month (${calStart} to ${calEnd})`
+      }
+    ];
+  }
+
+  // Mid-month cycle: Tier 1 (1st to cycleDay-1) and Tier 2 (cycleDay to lastDay)
+  const prevMonth = m === 1 ? 12 : m - 1;
+  const prevYear = m === 1 ? y - 1 : y;
+  const nextMonth = m === 12 ? 1 : m + 1;
+  const nextYear = m === 12 ? y + 1 : y;
+
+  const splitDayPrev = pad(cycleDay - 1);
+  const splitDayCurrent = pad(cycleDay);
+
+  // Tier 1 approval period: prevMonth cycleDay to currentMonth (cycleDay-1)
+  const t1ApprovalFrom = `${prevYear}-${pad(prevMonth)}-${splitDayCurrent}`;
+  const t1ApprovalTo = `${y}-${pad(m)}-${splitDayPrev}`;
+  const t1DateFrom = calStart;
+  const t1DateTo = `${y}-${pad(m)}-${splitDayPrev}`;
+
+  // Tier 2 approval period: currentMonth cycleDay to nextMonth (cycleDay-1)
+  const t2ApprovalFrom = `${y}-${pad(m)}-${splitDayCurrent}`;
+  const t2ApprovalTo = `${nextYear}-${pad(nextMonth)}-${splitDayPrev}`;
+  const t2DateFrom = `${y}-${pad(m)}-${splitDayCurrent}`;
+  const t2DateTo = calEnd;
+
+  return [
+    {
+      tier: 1,
+      vendor,
+      dateFrom: t1DateFrom,
+      dateTo: t1DateTo,
+      approvalPeriodFrom: t1ApprovalFrom,
+      approvalPeriodTo: t1ApprovalTo,
+      label: `Tier 1 (${t1DateFrom} to ${t1DateTo}) - Approved Ref: ${t1ApprovalFrom} to ${t1ApprovalTo}`
+    },
+    {
+      tier: 2,
+      vendor,
+      dateFrom: t2DateFrom,
+      dateTo: t2DateTo,
+      approvalPeriodFrom: t2ApprovalFrom,
+      approvalPeriodTo: t2ApprovalTo,
+      label: `Tier 2 (${t2DateFrom} to ${t2DateTo}) - Approved Ref: ${t2ApprovalFrom} to ${t2ApprovalTo}`
+    }
+  ];
+}
+
+export function resolveRmPriceForDate(materialCode = "", vendor = "", txDate = "") {
+  if (!txDate) return 0;
+  const vNorm = normalizeVendorId(vendor);
+  const cleanCode = (materialCode || "").toLowerCase().trim();
+  const history = globalStore.rmPriceHistory || [];
+
+  // Match period_from <= txDate <= period_to
+  const match = history.find(h => {
+    const vMatch = !h.vendor || normalizeVendorId(h.vendor) === vNorm;
+    const cMatch = (h.materialCode || "").toLowerCase().trim() === cleanCode;
+    const dMatch = (!h.periodFrom || h.periodFrom <= txDate) && (!h.periodTo || h.periodTo >= txDate);
+    return vMatch && cMatch && dMatch;
+  });
+
+  if (match) return Number(match.activeWaPrice || match.approvedPrice || 0);
+
+  // Fallback to active mapping
+  const active = (globalStore.rmMappingsData || []).find(r => {
+    return (!r.vendor || normalizeVendorId(r.vendor) === vNorm) &&
+      (r.approvedCode || "").toLowerCase().trim() === cleanCode;
+  });
+  return active ? Number(active.activeWaPrice || active.approvedPrice || 0) : 0;
+}
+
+export function resolveProductCostForDate(itemCode = "", vendor = "", txDate = "") {
+  if (!txDate) return null;
+  const vNorm = normalizeVendorId(vendor);
+  const cleanCode = (itemCode || "").toLowerCase().trim();
+  const history = globalStore.productPeriodHistory || [];
+
+  const match = history.find(h => {
+    const vMatch = !h.vendor || normalizeVendorId(h.vendor) === vNorm;
+    const iMatch = (h.itemCode || "").toLowerCase().trim() === cleanCode;
+    const dMatch = (!h.periodFrom || h.periodFrom <= txDate) && (!h.periodTo || h.periodTo >= txDate);
+    return vMatch && iMatch && dMatch;
+  });
+
+  if (match) return match;
+
+  // Fallback to baselineProducts
+  return (globalStore.baselineProducts || []).find(p => {
+    return (!p.vendor || normalizeVendorId(p.vendor) === vNorm) &&
+      (p.itemCode || "").toLowerCase().trim() === cleanCode;
+  }) || null;
+}
+
 const defaultStore = {
   isLocked: false,
   isMatrixLocked: false,
