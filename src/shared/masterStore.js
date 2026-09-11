@@ -522,7 +522,7 @@ export async function initSupabaseData() {
       }));
     }
 
-    if (purData && purData.length > 0) {
+    if (purData) {
       globalStore.purchases = purData.map(pur => ({
         id: pur.id,
         date: pur.date,
@@ -535,11 +535,6 @@ export async function initSupabaseData() {
         rate: Number(pur.rate || 0),
         type: pur.type || 'RM'
       }));
-    } else if (!globalStore.purchases || globalStore.purchases.length === 0) {
-      const localSaved = loadPersistedStore();
-      if (localSaved && Array.isArray(localSaved.purchases) && localSaved.purchases.length > 0) {
-        globalStore.purchases = localSaved.purchases;
-      }
     }
 
 
