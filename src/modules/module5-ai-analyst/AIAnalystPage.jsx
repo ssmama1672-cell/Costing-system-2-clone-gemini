@@ -183,9 +183,9 @@ export default function AIAnalystPage() {
             onChange={e => setEngineMode(e.target.value)}
             className="bg-slate-900 text-white text-[11px] font-medium border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500"
           >
-            <option value="auto">Auto (Gemini Search &rarr; Groq Failover)</option>
+            <option value="auto">Auto (Gemini Search &rarr; OpenRouter Failover)</option>
             <option value="gemini">Google Gemini Flash + Web Search</option>
-            <option value="groq">Groq Llama 3.3 70B Only</option>
+            <option value="openrouter">OpenRouter Failover Only</option>
           </select>
         </div>
       </div>
@@ -334,7 +334,7 @@ export default function AIAnalystPage() {
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-amber-600" />
             <span>
-              <strong>Failover Active:</strong> Primary Gemini request failed ({metaInfo.fallbackReason}). Srikants responded via <strong>Groq ({metaInfo.model})</strong>.
+              <strong>Failover Active:</strong> Primary Gemini request failed ({metaInfo.fallbackReason}). Srikants responded via <strong>OpenRouter ({metaInfo.model})</strong>.
             </span>
           </div>
           <span className="text-[10px] bg-amber-200 px-2 py-0.5 rounded font-bold">FAILOVER OK</span>
