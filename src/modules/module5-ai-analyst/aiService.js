@@ -7,7 +7,7 @@ async function callGeminiFlash(systemPrompt, userPrompt) {
     throw new Error("Google Gemini API Key is missing. Check VITE_GEMINI_API_KEY in .env.local");
   }
 
-  const models = ["gemini-3.6-flash", "gemini-flash-latest"];
+  const models = ["gemini-3.6-flash"];
   let lastError = null;
 
   for (const model of models) {
