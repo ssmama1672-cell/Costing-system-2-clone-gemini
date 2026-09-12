@@ -1,0 +1,26 @@
+name: Supabase Inactivity Heartbeat
+
+on:
+  schedule:
+    # Runs every 3 days at 06:00 UTC (11:30 AM IST)
+    - cron: "0 6 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database Endpoint
+        run: |
+          echo "Initiating heartbeat query to Supabase REST API..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: sb_publishable_LwOB9Frc0ffv90_zVLPY7w_6lZn7aoA" \
+            -H "Authorization: Bearer sb_publishable_LwOB9Frc0ffv90_zVLPY7w_6lZn7aoA" \
+            "https://rpfhfxdgzujnrxhaiskm.supabase.co/rest/v1/")
+          
+          echo "Supabase Response Status Code: $STATUS"
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -le 304 ]; then
+            echo "Heartbeat successful. Supabase database confirmed active."
+          else
+            echo "Heartbeat query registered (Status: $STATUS)."
+          fi
