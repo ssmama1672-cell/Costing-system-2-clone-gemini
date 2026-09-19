@@ -182,10 +182,16 @@ export default function BaselineMasterPage() {
             if (label.includes('name of component') || label.includes('part name') || (label.includes('description') && !label.includes('grade') && !label.includes('raw') && !label.includes('material'))) {
               if (!compName && isNaN(Number(valStr))) compName = valStr;
             }
-            if ((label.includes('item no') || label.includes('item code') || label.includes('part code') || labelA === '3') && !label.includes('master batch') && !label.includes('mould') && !label.includes('mold')) {
-              if (valStr !== '-' && valStr !== 'nan') itemCode = valStr;
+            // Context-Aware Item Code Mapping
+            const isHaierCodeRow = isHaierVendor && labelA === "3";
+            const isAtombergCodeRow = !isHaierVendor && labelA === "2"; // Atomberg Part Code is row 2
+            if ((label.includes("item no") || label.includes("item code") || label.includes("part code") || isHaierCodeRow || isAtombergCodeRow) && !label.includes("master batch") && !label.includes("mould") && !label.includes("mold")) {
+              if (valStr !== "-" && valStr !== "nan") itemCode = valStr;
             }
-            if (label.includes('mould size') || label.includes('mold size') || labelA === '2') mouldSize = valStr;
+
+            // Context-Aware Mould Size Mapping
+            const isHaierMouldRow = isHaierVendor && labelA === "2";
+            if (label.includes("mould size") || label.includes("mold size") || isHaierMouldRow) mouldSize = valStr;
             if (label.includes('model') && !label.includes('cost')) model = valStr;
 
             // 2. Raw Material & Masterbatch
