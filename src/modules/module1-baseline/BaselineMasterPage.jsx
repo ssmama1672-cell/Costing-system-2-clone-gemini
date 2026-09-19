@@ -147,6 +147,7 @@ export default function BaselineMasterPage() {
           let tonnage = isHaierVendor ? 600 : 200;
           let tariff = isHaierVendor ? 4800 : 2000;
           let cycleTime = isHaierVendor ? 70 : 47;
+          let efficiencyPct = isHaierVendor ? 95.0 : 90.0;
           let haierOverheadPackage = 0;
           let foamPolybag = 0;
           let plasticBin = 0;
@@ -182,10 +183,16 @@ export default function BaselineMasterPage() {
             if (label.includes('name of component') || label.includes('part name') || (label.includes('description') && !label.includes('grade') && !label.includes('raw') && !label.includes('material'))) {
               if (!compName && isNaN(Number(valStr))) compName = valStr;
             }
-            if ((label.includes('item no') || label.includes('item code') || label.includes('part code') || labelA === '3') && !label.includes('master batch') && !label.includes('mould') && !label.includes('mold')) {
-              if (valStr !== '-' && valStr !== 'nan') itemCode = valStr;
+            // Context-Aware Item Code Mapping
+            const isHaierCodeRow = isHaierVendor && labelA === "3";
+            const isAtombergCodeRow = !isHaierVendor && labelA === "2"; // Atomberg Part Code is row 2
+            if ((label.includes("item no") || label.includes("item code") || label.includes("part code") || isHaierCodeRow || isAtombergCodeRow) && !label.includes("master batch") && !label.includes("mould") && !label.includes("mold")) {
+              if (valStr !== "-" && valStr !== "nan") itemCode = valStr;
             }
-            if (label.includes('mould size') || label.includes('mold size') || labelA === '2') mouldSize = valStr;
+
+            // Context-Aware Mould Size Mapping
+            const isHaierMouldRow = isHaierVendor && labelA === "2";
+            if (label.includes("mould size") || label.includes("mold size") || isHaierMouldRow) mouldSize = valStr;
             if (label.includes('model') && !label.includes('cost')) model = valStr;
 
             // 2. Raw Material & Masterbatch
@@ -255,7 +262,15 @@ export default function BaselineMasterPage() {
             if (label.includes('assembly cost') || label.includes('assy')) {
               if (!isNaN(valNum)) assemblyCost = valNum;
             }
-            if (label.includes('insert') || label.includes('hinge') || label.includes('bop')) {
+            // Machine Efficiency Parsing (e.g., 0.9 -> 90%)
+            if (label.includes("efficiency") || labelA === "24") {
+              if (!isNaN(valNum) && valNum > 0) {
+                efficiencyPct = valNum <= 1 ? Number((valNum * 100).toFixed(1)) : valNum;
+              }
+            }
+
+            // BOP / Inserts Cost Parsing (strictly ignore BOP handling charges)
+            if ((label.includes("insert") || label.includes("hinge") || label.includes("bop cost") || (label.includes("bop") && !label.includes("handling"))) && !label.includes("handling")) {
               if (!isNaN(valNum)) bopCost = valNum;
             }
             if (label.includes('mould maintenance')) {
@@ -385,7 +400,7 @@ export default function BaselineMasterPage() {
               shiftTariff: tariff,
               cycleTimeApproved: cycleTime,
               meltLossPct: 1.0,
-              efficiencyPct: 95.0,
+              efficiencyPct: efficiencyPct,
               haierOverheadPackage: haierOverheadPackage,
               foamPolybag,
               plasticBin,
@@ -411,7 +426,7 @@ export default function BaselineMasterPage() {
                 runningShiftTariff: tariff,
                 runningMbPct: mbPct,
                 runningMeltLossPct: 1.0,
-                runningEfficiencyPct: 95.0,
+                runningEfficiencyPct: efficiencyPct,
                 runningHaierOverheadPackage: haierOverheadPackage,
                 runningFoamPolybag: foamPolybag,
                 runningPlasticBin: plasticBin,
